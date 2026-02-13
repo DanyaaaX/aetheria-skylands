@@ -11,11 +11,13 @@
   "dependencies": {
     "@tonconnect/ui-react": "^2.0.9",
     "axios": "^1.13.5",
+    "compression": "^1.8.1",
     "dotenv": "^17.2.4",
     "framer-motion": "^11.0.8",
     "lucide-react": "^0.363.0",
     "mongodb": "^7.1.0",
     "mongoose": "^9.2.1",
+    "morgan": "^1.10.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.22.3",
