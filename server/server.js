@@ -1,72 +1,98 @@
-
+require('dotenv').config();
 const express = require('express');
-const router = express.Router();
-const User = require('./models/User'); // ✅ Це шукає в поточній папці (server/models/User)
-const { v4: uuidv4 } = require('uuid');
-const crypto = require('crypto');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const morgan = require('morgan');
+const { v4: uuidv4 } = require('uuid');
+const nacl = require('tweetnacl');
+const User = require('./models/User');
 
-// --- MIDDLEWARE (Merged from Code 2) ---
-// 1. OPTIMIZATION & LOGGING
-router.use(compression()); // Compresses JSON to save traffic
-router.use(morgan('dev')); // Logs requests: "GET /api/leaderboard 200 15ms"
+const app = express();
 
-// --- PRODUCTION CONFIGURATION ---
-const TON_API_URL = process.env.TON_API_URL || 'https://toncenter.com/api/v2/jsonRPC';
-const TON_API_KEY = process.env.TON_API_KEY;
+// --- SERVER CONFIGURATION ---
+app.set('trust proxy', 1);
+
+// --- MIDDLEWARE & SECURITY (MERGED) ---
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
+
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://aetheria-skylands.vercel.app',
+  'https://aetheria.vercel.app'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  methods: ['GET', 'POST', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Cache-Control']
+}));
+
+app.use(compression());
+app.use(morgan('dev'));
+app.use(express.json({ limit: '50kb' }));
+
+// Request Logging
+app.use((req, res, next) => {
+  console.log(`[REQUEST] ${req.method} ${req.path} from ${req.ip}`);
+  next();
+});
+
+// Rate Limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 5000, 
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false } 
+});
+app.use('/api/', apiLimiter);
+
+// --- APP SETTINGS ---
 const ADMIN_WALLET = process.env.ADMIN_WALLET;
-
-// 🔥 CONFIG: Set to 1 nanoton so any positive amount passes (0.05 TON will easily pass)
 const EARLY_ACCESS_COST_NANO = 1;
 
-// --- INITIALIZATION CHECKS ---
 if (!ADMIN_WALLET) {
   console.error("🚨 CRITICAL: ADMIN_WALLET is not defined in environment variables.");
 }
 
-// --- HELPER FUNCTIONS ---
+// --- CRYPTO & BLOCKCHAIN HELPERS ---
 
-/**
- * 🛡️ HELPER: Basic Wallet Validation
- * Prevents injection attacks or malformed requests early.
- */
 const validateWalletAddress = (address) => {
-    // Basic TON address validation (48 chars raw or user-friendly format)
     if (!address || typeof address !== 'string') return false;
     return address.length >= 48; 
 };
 
-/**
- * --- ДОПОМІЖНА ФУНКЦІЯ: Конвертація Friendly (UQ/EQ) -> Raw (Hex) ---
- * Added from Code 2 for Version 3.0 Compatibility
- */
 const friendlyToHex = (friendly) => {
   try {
-    // Декодуємо Base64 (замінюємо URL-безпечні символи)
     const base64 = friendly.replace(/-/g, '+').replace(/_/g, '/');
     const buffer = Buffer.from(base64, 'base64');
     if (buffer.length < 34) return null;
-    // Байти з 2 по 33 — це і є наш унікальний Hex-адрес
     return buffer.slice(2, 34).toString('hex').toLowerCase();
   } catch (e) {
     return null;
   }
 };
 
-/**
- * 🔐 SECURITY CORE: Verify Ed25519 Signature
- * Performs actual cryptographic verification.
- */
 const verifySignature = (publicKeyHex, signatureBase64, messageString) => {
   try {
     if (!publicKeyHex || !signatureBase64 || !messageString) return false;
-    // Convert inputs to Uint8Arrays for tweetnacl
     const signature = Buffer.from(signatureBase64, 'base64');
     const publicKey = Buffer.from(publicKeyHex, 'hex');
     const message = new TextEncoder().encode(messageString);
-
-    // Verify using Ed25519
     return nacl.sign.detached.verify(message, signature, publicKey);
   } catch (e) {
     console.error("🛑 CRYPTO FAILURE:", e.message);
@@ -74,27 +100,19 @@ const verifySignature = (publicKeyHex, signatureBase64, messageString) => {
   }
 };
 
-/**
- * 💰 BLOCKCHAIN CORE: Verify Payment on TON
- * UPDATED TO VERSION 3.0 (From Code 2) - Ultra Compatibility
- * Uses Hex matching to handle Raw/Base64 address differences reliably.
- */
 const verifyOnChainPayment = async (userWalletAddress) => {
   try {
     console.log(`🔍 [CHECK] Початок перевірки для: ${userWalletAddress}`);
     const endpoint = `https://toncenter.com/api/v2/getTransactions?address=${ADMIN_WALLET}&limit=50&archival=true`;
     const headers = process.env.TON_API_KEY ? { 'X-API-Key': process.env.TON_API_KEY } : {};
-    
     const response = await fetch(endpoint, { headers });
     const data = await response.json();
+    
     if (!data.ok) {
       console.error("❌ TON API ERROR:", data);
       return false;
     }
 
-    // Determine User Hex
-    // If address has colon, it's raw.
-    // Otherwise try to convert friendly to hex.
     let userHex;
     if (userWalletAddress.includes(':')) {
         userHex = userWalletAddress.split(':')[1].toLowerCase();
@@ -109,16 +127,12 @@ const verifyOnChainPayment = async (userWalletAddress) => {
       
       const sourceFriendly = inMsg.source; 
       const value = BigInt(inMsg.value);
-      
-      // Конвертуємо адресу відправника з Friendly у Hex
       const sourceHex = friendlyToHex(sourceFriendly);
 
       const isMatch = (sourceHex === userHex);
-
       if (isMatch) {
         console.log(`✅ ЗНАЙДЕНО! Від: ${sourceFriendly} (Hex: ${sourceHex}) | Сума: ${value}`);
       }
-      
       return isMatch && value >= BigInt(EARLY_ACCESS_COST_NANO);
     });
     return !!validTx;
@@ -130,30 +144,25 @@ const verifyOnChainPayment = async (userWalletAddress) => {
 
 // --- ROUTES ---
 
+const authRouter = express.Router();
+
 /**
  * GET /api/auth/nonce/:walletAddress
- * Generates challenge (nonce) for frontend signing
  */
-router.get('/nonce/:walletAddress', async (req, res) => {
+authRouter.get('/nonce/:walletAddress', async (req, res) => {
   try {
     const { walletAddress } = req.params;
-    
-    // Modernization: Input Validation
     if (!validateWalletAddress(walletAddress)) {
         return res.status(400).json({ error: "Invalid wallet address format" });
     }
 
     let user = await User.findOne({ walletAddress });
-    
     if (!user) {
-        // If user doesn't exist, return temp nonce for registration
         return res.json({ nonce: uuidv4() });
     }
     
-    // Update nonce for security
     user.nonce = uuidv4();
     await user.save();
-    
     res.json({ nonce: user.nonce });
   } catch (err) {
     console.error("Nonce Error:", err);
@@ -163,9 +172,8 @@ router.get('/nonce/:walletAddress', async (req, res) => {
 
 /**
  * POST /api/auth/login
- * Registration or Login (SECURED with Signature from Code 1)
  */
-router.post('/login', async (req, res) => {
+authRouter.post('/login', async (req, res) => {
   const { walletAddress, publicKey, signature, message, username, referredBy } = req.body;
 
   if (!walletAddress || !publicKey) {
@@ -173,7 +181,6 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    // 1. Signature Check (Secure)
     const isValid = verifySignature(publicKey, signature, message);
     if (!isValid) {
         return res.status(401).json({ error: "Invalid cryptographic signature." });
@@ -181,16 +188,13 @@ router.post('/login', async (req, res) => {
 
     let user = await User.findOne({ walletAddress });
 
-    // 2. Registration Logic (New User)
     if (!user) {
       if (!username) return res.status(400).json({ error: "Username required for registration." });
       
       const cleanUsername = username.toUpperCase().trim();
-      
-      // Unique username check
       const existingName = await User.findOne({ username: cleanUsername });
       if (existingName) return res.status(409).json({ error: "Username unavailable." });
-      
+
       user = new User({
         walletAddress,
         publicKey,
@@ -204,7 +208,6 @@ router.post('/login', async (req, res) => {
       });
       await user.save();
 
-      // Referral bonus logic
       if (referredBy) {
         await User.findOneAndUpdate(
           { referralCode: referredBy.toLowerCase() },
@@ -222,9 +225,8 @@ router.post('/login', async (req, res) => {
 
 /**
  * POST /api/auth/check
- * Session check (does user exist?)
  */
-router.post('/check', async (req, res) => {
+authRouter.post('/check', async (req, res) => {
   try {
       const { walletAddress } = req.body;
       const user = await User.findOne({ walletAddress });
@@ -236,23 +238,16 @@ router.post('/check', async (req, res) => {
 
 /**
  * POST /api/auth/update-username
- * Change username (requires signature)
  */
-router.post('/update-username', async (req, res) => {
+authRouter.post('/update-username', async (req, res) => {
   const { walletAddress, newUsername, signature, message, publicKey } = req.body;
 
   try {
     const user = await User.findOne({ walletAddress });
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    // SECURITY CHECK
     if (!verifySignature(publicKey, signature, message)) {
         return res.status(401).json({ error: "Signature verification failed." });
-    }
-
-    // Nonce check (Anti-replay)
-    if (message && !message.includes(user.nonce)) {
-        console.warn(`Nonce mismatch for user ${user.username}`);
     }
 
     const cleanUsername = newUsername.toUpperCase().trim();
@@ -262,7 +257,7 @@ router.post('/update-username', async (req, res) => {
     if (exists) return res.status(409).json({ error: "Username taken" });
 
     user.username = cleanUsername;
-    user.nonce = uuidv4(); // Rotate nonce
+    user.nonce = uuidv4(); 
     await user.save();
 
     res.json({ success: true, user });
@@ -275,10 +270,9 @@ router.post('/update-username', async (req, res) => {
 /**
  * POST /api/auth/update-socials
  */
-router.post('/update-socials', async (req, res) => {
+authRouter.post('/update-socials', async (req, res) => {
   try {
     const { walletAddress, platform } = req.body;
-    
     const user = await User.findOne({ walletAddress });
     if (!user) return res.status(404).json({ error: "User not found" });
 
@@ -294,20 +288,16 @@ router.post('/update-socials', async (req, res) => {
 
 /**
  * POST /api/auth/mint
- * 🚨 FINANCIAL ENDPOINT - Uses Updated Payment Logic from Code 2
  */
-router.post('/mint', async (req, res) => {
+authRouter.post('/mint', async (req, res) => {
   const { walletAddress, updateField } = req.body;
   
   try {
     const user = await User.findOne({ walletAddress });
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    // 1. Early Access Payment
     if (updateField === 'hasPaidEarlyAccess') {
         if (user.hasPaidEarlyAccess) return res.json({ success: true, user });
-
-        // Check Blockchain (Using updated Code 2 Version 3.0 logic)
         const isPaid = await verifyOnChainPayment(user.walletAddress);
         
         if (isPaid) {
@@ -316,13 +306,11 @@ router.post('/mint', async (req, res) => {
             await user.save();
             return res.json({ success: true, user });
         } else {
-             // 402 Payment Pending - Frontend should retry
             console.warn(`⚠️ Payment check pending for ${walletAddress}`);
             return res.status(402).json({ error: "Payment pending... Please wait." });
         }
     }
     
-    // 2. Mint NFT
     if (updateField === 'hasMintedNFT') {
         if (!user.hasPaidEarlyAccess) return res.status(403).json({ error: "Early Access required." });
         if (!user.socialsFollowed.twitter || !user.socialsFollowed.telegram) {
@@ -339,9 +327,17 @@ router.post('/mint', async (req, res) => {
   }
 });
 
-// --- GLOBAL ERROR HANDLER (Merged from Code 2) ---
-// Ensures the server doesn't crash on unhandled errors
-router.use((err, req, res, next) => {
+// --- MOUNT ROUTERS ---
+app.use('/api/auth', authRouter);
+app.use('/api/leaderboard', require('./routes/leaderboard'));
+app.use('/api/payment', require('./routes/payment'));
+
+// --- HEALTH CHECKS ---
+app.get('/health', (req, res) => res.status(200).json({ status: 'OK' }));
+app.get('/', (req, res) => res.send('Aetheria Backend Active'));
+
+// --- GLOBAL ERROR HANDLER ---
+app.use((err, req, res, next) => {
   console.error('🔥 UNHANDLED ERROR:', err.stack);
   res.status(500).json({ 
     success: false, 
@@ -349,4 +345,17 @@ router.use((err, req, res, next) => {
   });
 });
 
-module.exports = router;
+// --- DATABASE & SERVER START ---
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI; 
+
+mongoose.connect(MONGODB_URI)
+  .then(() => {
+    console.log('>>> DB CONNECTION: SUCCESS');
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+      console.log(`>>> SERVER LISTENING ON PORT ${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error('!!! DB CONNECTION FAILED:', err.message);
+  });
