@@ -1,8 +1,7 @@
 
 const express = require('express');
 const router = express.Router();
-const User = require('../models/User');
-const nacl = require('tweetnacl');
+const User = require('./models/User'); // ✅ Це шукає в поточній папці (server/models/User)
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const compression = require('compression');
