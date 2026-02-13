@@ -1,0 +1,8 @@
+{
+  "name": "Aetheria: Skylands Pre-Launch",
+  "description": "A high-end pre-launch and referral dashboard for the Aetheria: Skylands TON game, featuring glassmorphism design, pyramid referral logic, and blockchain integration.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
