@@ -45,7 +45,7 @@ app.use(cors({
   },
   methods: ['GET', 'POST', 'OPTIONS'],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Cache-Control']
 }));
 
 // --- ЛОГУВАННЯ ЗАПИТІВ (Щоб бачити в Render Logs) ---
