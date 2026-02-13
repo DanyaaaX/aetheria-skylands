@@ -1,4 +1,17 @@
-# Logs
+# --- Залежності ---
+node_modules/
+jspm_packages/
+
+# --- Збірка (Build) ---
+dist/
+dist-ssr/
+build/
+out/
+bin/
+obj/
+.tsbuildinfo
+
+# --- Логи ---
 logs
 *.log
 npm-debug.log*
@@ -7,23 +20,31 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# --- Налаштування середовища (СЕКРЕТИ) ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 *.local
+!.env.example
 
-# Editor directories and files
-.vscode/*
+# --- IDE / Редактори ---
+.vscode/
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-.env
-.env.local
-.env.*
-!.env.example
 
+# --- Системні файли (OS) ---
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# --- Тестування ---
+coverage/
+.nyc_output/
