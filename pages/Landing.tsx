@@ -1,62 +1,19 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { TonConnectButton, useTonConnectUI, useTonAddress } from '@tonconnect/ui-react';
-import { Shield, Zap, Sparkles, BarChart3, Rocket, Send, Coins, MousePointerClick, Loader2, Info } from 'lucide-react';
-import { toast, Toaster } from 'react-hot-toast';
-
-// --- CONFIGURATION ---
-// 🔴 IMPORTANT: Insert Sale Contract Address from Getgems!
-const SALE_CONTRACT_ADDRESS = "EQDy...YOUR_GETGEMS_ADDRESS"; 
-const MINT_PRICE_TON = 2.5;
+import { TonConnectButton } from '@tonconnect/ui-react';
+import { Shield, Zap, Sparkles, BarChart3, Rocket, Send, Coins, MousePointerClick } from 'lucide-react';
 
 const Landing: React.FC = () => {
-  const [tonConnectUI] = useTonConnectUI();
-  const userAddress = useTonAddress(); 
-  const [isMinting, setIsMinting] = useState(false);
-
-  const handleMint = async () => {
-    if (!userAddress) {
-      toast.error("Connect wallet first!");
-      return;
-    }
-
-    if (SALE_CONTRACT_ADDRESS.includes("YOUR_GETGEMS_ADDRESS")) {
-      toast.error("DEV ERROR: Contract address not configured!");
-      return;
-    }
-
-    setIsMinting(true);
-
-    try {
-      const amountNano = (MINT_PRICE_TON * 1000000000).toString();
-      const transaction = {
-        validUntil: Math.floor(Date.now() / 1000) + 360,
-        messages: [
-          {
-            address: SALE_CONTRACT_ADDRESS,
-            amount: amountNano, 
-          },
-        ],
-      };
-      await tonConnectUI.sendTransaction(transaction);
-      
-      toast.success("Transaction sent! NFT will appear in your profile shortly.");
-    } catch (error: any) {
-      console.error("Mint Error:", error);
-      if (error?.message?.includes('User rejected')) {
-        toast.error("You cancelled the transaction.");
-      } else {
-        toast.error("Error. Check balance (need extra for gas).");
-      }
-    } finally {
-      setIsMinting(false);
-    }
-  };
+  
+  const stats = [
+    { label: "Total Supply", value: "8,888" },
+    { label: "Yield Type", value: "Passive" },
+    { label: "Platform", value: "Telegram Mini-App" }
+  ];
 
   return (
     <div className="relative w-full min-h-screen bg-[#050505] text-white overflow-hidden">
-      <Toaster position="top-center" toastOptions={{ style: { background: '#1a1b1e', color: '#fff', border: '1px solid #333' } }} />
       
       {/* --- BACKGROUND EFFECTS --- */}
       <div className="fixed inset-0 z-0 pointer-events-none">
@@ -96,7 +53,7 @@ const Landing: React.FC = () => {
             className="max-w-2xl bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-xl mb-12 shadow-2xl"
           >
             <p className="text-lg md:text-xl text-gray-300 font-light leading-relaxed">
-              Aetheria is an <span className="text-white font-bold">Economic Strategy</span> evolving into a high-stakes <span className="text-cyan-400 font-bold">Telegram Mini-Game</span>.
+              Aetheria is an <span className="text-white font-bold">Economic Strategy</span> evolving into a high-stakes <span className="text-cyan-400 font-bold">Telegram Mini-Game</span>. 
               Own Genesis Lands to automate resource extraction and secure <span className="text-purple-400 font-bold">Passive Income</span> 24/7 within the TON ecosystem.
             </p>
           </motion.div>
@@ -107,69 +64,9 @@ const Landing: React.FC = () => {
                 <Rocket className="w-5 h-5" />
                 <span className="tracking-widest uppercase text-sm">Mint Genesis NFT</span>
              </Link>
-             <div className="p-1 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-full">
-                <div className="bg-black rounded-full px-2">
-                   <TonConnectButton />
-                </div>
-             </div>
+             <TonConnectButton />
           </div>
         </section>
-
-        {/* --- NFT MINT BLOCK (WEB3 VERSION) --- */}
-        <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="w-full max-w-2xl mx-auto bg-[#0f0f13] border border-purple-500/30 rounded-3xl p-6 md:p-8 mb-32 shadow-[0_0_60px_-15px_rgba(168,85,247,0.3)] relative overflow-hidden"
-        >
-            {/* Decorative Glow */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1 bg-gradient-to-r from-transparent via-purple-500 to-transparent opacity-50"></div>
-
-            <div className="flex flex-col items-center mb-6">
-            <div className="p-3 bg-purple-500/10 rounded-full mb-4">
-                <Sparkles className="text-purple-400 w-8 h-8" />
-            </div>
-            <h2 className="text-3xl font-bold text-white tracking-wide font-cinzel mb-2">MYSTERY SKYLAND</h2>
-            <p className="text-gray-400 text-sm max-w-md text-center">
-                Mint a generic Genesis Land now.
-                Reveal its rarity (Common to Mystic) after the public sale ends.
-            </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mb-8">
-                <div className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col items-center">
-                    <span className="text-gray-400 text-xs uppercase tracking-wider">Supply</span>
-                    <span className="text-xl font-bold text-white">8,888</span>
-                </div>
-                <div className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col items-center">
-                    <span className="text-gray-400 text-xs uppercase tracking-wider">Price</span>
-                    <span className="text-xl font-bold text-cyan-400">{MINT_PRICE_TON} TON</span>
-                </div>
-            </div>
-
-            <button 
-            onClick={handleMint}
-            disabled={isMinting}
-            className={`w-full py-4 rounded-xl font-bold text-white text-lg shadow-lg transition-all 
-                ${isMinting 
-                ? 'bg-gray-700 cursor-not-allowed' 
-                : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 hover:shadow-purple-500/25 active:scale-[0.98]'
-                }`}
-            >
-            {isMinting ? (
-                <span className="flex items-center justify-center gap-2">
-                <Loader2 className="animate-spin w-5 h-5" /> CONFIRM IN WALLET...
-                </span>
-            ) : (
-                `MINT NOW`
-            )}
-            </button>
-            
-            <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-500">
-                <Info className="w-3 h-3" />
-                <span>Gas fee ~0.05 TON required</span>
-            </div>
-        </motion.div>
 
         {/* --- FEATURE CARDS --- */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-32">
@@ -201,13 +98,10 @@ const Landing: React.FC = () => {
             <p className="text-gray-400 mb-10 max-w-xl mx-auto uppercase tracking-widest text-sm font-bold">
                 Mint your legendary land today and start earning passive income before the official TGE.
             </p>
-            <button 
-                onClick={handleMint}
-                className="inline-flex items-center gap-3 px-12 py-5 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-2xl transition-all shadow-2xl shadow-purple-500/40 uppercase tracking-widest text-sm"
-            >
+            <Link to="/dashboard" className="inline-flex items-center gap-3 px-12 py-5 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-2xl transition-all shadow-2xl shadow-purple-500/40 uppercase tracking-widest text-sm">
                 <MousePointerClick className="w-5 h-5" />
                 Mint My First Skyland
-            </button>
+            </Link>
         </motion.div>
 
       </div>
