@@ -9,8 +9,6 @@ import { SOCIAL_LINKS } from '../constants';
 
 interface ProfileProps {
   user: User | null;
-  // Ми залишаємо setUser в інтерфейсі, щоб не ламався батьківський компонент,
-  // навіть якщо тут ми його не використовуємо (бо прибрали редагування).
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
 }
 
@@ -19,7 +17,7 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
 
   if (!user) return null;
 
-  // Логіка копіювання адреси (додав, бо це зручно для юзера)
+  // Логіка копіювання адреси
   const copyAddress = () => {
     if (user.walletAddress) {
       navigator.clipboard.writeText(user.walletAddress);
@@ -52,11 +50,10 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
   return (
     <div className="relative min-h-screen w-full text-white overflow-hidden pb-20">
       
-      {/* --- BACKGROUND AMBIENCE (Фонові ефекти) --- */}
+      {/* --- BACKGROUND AMBIENCE --- */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[120px]" />
         <div className="absolute bottom-[10%] left-[-10%] w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[100px]" />
-        {/* Текстура шуму для кінематографічності */}
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>
       </div>
 
@@ -68,29 +65,29 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
           className="space-y-8"
         >
           
-          {/* --- MAIN IDENTITY CARD (Головна картка) --- */}
+          {/* --- MAIN IDENTITY CARD --- */}
           <div className="relative group rounded-[2.5rem] bg-[#0A0A0E] border border-white/10 overflow-hidden shadow-2xl">
-            {/* Анімований градієнт зверху */}
+            {/* Header Gradient */}
             <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-cyan-900/40 via-purple-900/40 to-indigo-900/40"></div>
             
             <div className="relative px-8 pb-10 pt-16 md:px-12 md:flex md:items-end gap-8">
               
-              {/* Аватар */}
+              {/* Avatar Section */}
               <div className="relative shrink-0">
                 <div className="w-36 h-36 rounded-3xl bg-[#050505] border-2 border-cyan-500/30 p-1 shadow-[0_0_40px_rgba(6,182,212,0.2)] flex items-center justify-center relative z-10">
                    <div className="w-full h-full rounded-2xl bg-gradient-to-br from-gray-800 to-black flex items-center justify-center overflow-hidden relative">
                       <UserIcon className="w-16 h-16 text-gray-400" />
-                      {/* Ефект сканування */}
+                      {/* Scanline Effect */}
                       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/10 to-transparent animate-scan" />
                    </div>
                 </div>
-                {/* Індикатор статусу */}
+                {/* Online Status */}
                 <div className="absolute -bottom-3 -right-3 px-3 py-1 bg-green-500 text-black text-[10px] font-black uppercase rounded-full border-2 border-[#0A0A0E] shadow-lg">
                   Online
                 </div>
               </div>
 
-              {/* Інформація про користувача */}
+              {/* User Info Section */}
               <div className="mt-6 md:mt-0 flex-grow">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
@@ -99,7 +96,6 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
                         Guardian Identity
                     </h5>
                     
-                    {/* Тільки ім'я, без редагування */}
                     <div className="flex items-center gap-4">
                        <h1 className="text-4xl md:text-6xl font-cinzel font-black text-white tracking-wide drop-shadow-lg break-all">
                            {user.username}
@@ -107,7 +103,7 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
                     </div>
                   </div>
 
-                  {/* Кнопка копіювання гаманця */}
+                  {/* Wallet Copy Button */}
                   <button 
                     onClick={copyAddress}
                     className="flex items-center gap-2 bg-black/40 hover:bg-black/60 border border-white/10 hover:border-cyan-500/50 px-5 py-3 rounded-full transition-all group/wallet cursor-pointer"
@@ -120,14 +116,15 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
                   </button>
                 </div>
 
+                {/* System ID Line (FIXED: removed telegramId, using Wallet Hash instead) */}
                 <div className="mt-4 flex items-center gap-2 text-xs text-gray-500 font-mono">
                     <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></div>
-                    System ID: <span className="text-gray-400">{user.telegramId || "UNKNOWN"}</span>
+                    System ID: <span className="text-gray-400">UID-{user.walletAddress ? user.walletAddress.slice(-6).toUpperCase() : "UNKNOWN"}</span>
                 </div>
               </div>
             </div>
 
-            {/* --- STATS GRID (Статистика) --- */}
+            {/* --- STATS GRID --- */}
             <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-white/5 border-t border-white/5 bg-black/20">
               {statItems.map((item, i) => (
                 <div key={i} className="p-8 flex items-center gap-5 hover:bg-white/[0.02] transition-colors group">
@@ -143,7 +140,7 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
             </div>
           </div>
 
-          {/* --- SOCIAL SYNC SECTION (Соціальні мережі) --- */}
+          {/* --- SOCIAL SYNC SECTION --- */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
              
              {/* Twitter Card */}
@@ -207,7 +204,7 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
              </div>
           </div>
 
-           {/* Footer: Security Info */}
+           {/* Footer Security */}
            <div className="flex items-center justify-center gap-2 p-6 opacity-40 hover:opacity-100 transition-opacity">
              <AlertCircle className="w-4 h-4 text-gray-500" />
              <p className="text-[10px] text-gray-500 uppercase tracking-widest">
