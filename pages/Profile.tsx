@@ -1,23 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   User as UserIcon, Wallet, Coins, Users, 
-  CheckCircle2, Twitter, Send, Copy, ShieldCheck, AlertCircle 
+  CheckCircle2, Twitter, Send, Copy, ShieldCheck, 
+  Lock, Medal, Scroll, Gem, Star, Flame, Trophy, AlertTriangle 
 } from 'lucide-react';
 import { User } from '../types';
 import { SOCIAL_LINKS } from '../constants';
+
+// --- TYPES EXTENSION (LOCAL) ---
+// Розширюємо інтерфейс, щоб TypeScript не сварився на нові фічі, 
+// поки ти не оновиш базу даних.
+interface ExtendedUser extends User {
+  dailyStreak?: number; // Дні підряд
+  hasNft?: boolean;     // Чи є NFT
+  xpProgress?: number;  // Прогрес до 4-го бейджа
+}
 
 interface ProfileProps {
   user: User | null;
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
 }
 
-const Profile: React.FC<ProfileProps> = ({ user }) => {
+const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
   const [copied, setCopied] = useState(false);
+  // Приводимо юзера до розширеного типу (мокові дані для візуалізації)
+  const user = initialUser as ExtendedUser; 
+  
+  // Імітація даних, яких поки немає в БД (ЗАМІНИ ПОТІМ НА РЕАЛЬНІ)
+  const userStreak = user.dailyStreak || 5; 
+  const hasNft = user.hasNft || false; 
+  const mysteryProgress = 45; // 45% розшифровки 4-го бейджа
 
   if (!user) return null;
 
-  // Логіка копіювання адреси
   const copyAddress = () => {
     if (user.walletAddress) {
       navigator.clipboard.writeText(user.walletAddress);
@@ -26,196 +42,335 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
     }
   };
 
-  const statItems = [
-    { 
-      icon: <Coins className="w-6 h-6 text-yellow-400" />, 
-      label: "Aether Balance", 
-      value: user.points.toLocaleString(), 
-      sub: "PENDING AIRDROP" 
+  // --- BADGES LOGIC ---
+  const badges = [
+    {
+      id: 1,
+      title: "Early Adopter",
+      desc: "Genesis Era",
+      icon: <Star className="w-5 h-5" />,
+      color: "yellow",
+      status: "unlocked", 
+      progress: 100
     },
-    { 
-      icon: <Users className="w-6 h-6 text-cyan-400" />, 
-      label: "Squadron", 
-      value: user.inviteCount, 
-      sub: "ACTIVE RECRUITS" 
+    {
+      id: 2,
+      title: "Whitelisted",
+      desc: "Alpha Access",
+      icon: <Scroll className="w-5 h-5" />,
+      color: "cyan",
+      status: user.hasPaidEarlyAccess ? "unlocked" : "locked",
+      progress: user.hasPaidEarlyAccess ? 100 : 0
     },
-    { 
-      icon: <ShieldCheck className="w-6 h-6 text-purple-400" />, 
-      label: "Clearance", 
-      value: user.hasPaidEarlyAccess ? "ALPHA COMMANDER" : "INITIATE", 
-      sub: "ACCESS LEVEL" 
+    {
+      id: 3,
+      title: "Island Owner",
+      desc: "Minted NFT",
+      icon: <Gem className="w-5 h-5" />,
+      color: "purple",
+      status: hasNft ? "unlocked" : "locked",
+      progress: hasNft ? 100 : 0
     },
+    {
+      id: 4,
+      title: "Classified",
+      desc: "Decrypting...",
+      icon: <Lock className="w-5 h-5" />,
+      color: "red",
+      status: "progress", // Спеціальний статус для прогрес-бару
+      progress: mysteryProgress
+    }
   ];
 
   return (
-    <div className="relative min-h-screen w-full text-white overflow-hidden pb-20">
+    <div className="relative w-full min-h-screen bg-[#030305] text-white overflow-hidden pb-32 selection:bg-cyan-500/30 font-sans">
       
-      {/* --- BACKGROUND AMBIENCE --- */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[10%] left-[-10%] w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[100px]" />
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>
+      {/* --- BACKGROUND EFFECTS --- */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#1a1a2e] via-[#050505] to-[#000000]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
+        
+        {/* Deep Space Glows */}
+        <motion.div 
+          animate={{ opacity: [0.1, 0.3, 0.1], scale: [1, 1.1, 1] }}
+          transition={{ duration: 10, repeat: Infinity }}
+          className="absolute top-0 right-0 w-[800px] h-[800px] bg-purple-900/10 rounded-full blur-[120px]" 
+        />
+        <motion.div 
+           animate={{ opacity: [0.1, 0.2, 0.1], scale: [1.1, 1, 1.1] }}
+           transition={{ duration: 12, repeat: Infinity }}
+           className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-cyan-900/10 rounded-full blur-[100px]" 
+        />
       </div>
 
-      <div className="relative z-10 max-w-5xl mx-auto pt-10 px-6">
+      <div className="relative z-10 max-w-7xl mx-auto pt-24 px-4 sm:px-6">
         
         <motion.div 
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-8"
+          className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8"
         >
           
-          {/* --- MAIN IDENTITY CARD --- */}
-          <div className="relative group rounded-[2.5rem] bg-[#0A0A0E] border border-white/10 overflow-hidden shadow-2xl">
-            {/* Header Gradient */}
-            <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-cyan-900/40 via-purple-900/40 to-indigo-900/40"></div>
+          {/* ================= LEFT COLUMN (Identity & Socials) ================= */}
+          <div className="lg:col-span-8 space-y-6">
             
-            <div className="relative px-8 pb-10 pt-16 md:px-12 md:flex md:items-end gap-8">
+            {/* 1. IDENTITY CARD */}
+            <div className="relative p-6 sm:p-8 rounded-[2rem] bg-[#0A0A0E]/60 backdrop-blur-xl border border-white/10 overflow-hidden group hover:border-white/20 transition-all">
+              {/* Animated Top Border */}
+              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50"></div>
               
-              {/* Avatar Section */}
-              <div className="relative shrink-0">
-                <div className="w-36 h-36 rounded-3xl bg-[#050505] border-2 border-cyan-500/30 p-1 shadow-[0_0_40px_rgba(6,182,212,0.2)] flex items-center justify-center relative z-10">
-                   <div className="w-full h-full rounded-2xl bg-gradient-to-br from-gray-800 to-black flex items-center justify-center overflow-hidden relative">
-                      <UserIcon className="w-16 h-16 text-gray-400" />
-                      {/* Scanline Effect */}
-                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/10 to-transparent animate-scan" />
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8">
+                {/* Avatar */}
+                <div className="relative shrink-0">
+                   <div className="absolute -inset-1 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-full blur opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
+                   <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-[#050505] border border-white/10 flex items-center justify-center overflow-hidden z-10 shadow-2xl">
+                      <UserIcon className="w-12 h-12 text-gray-500" />
+                      {/* Holographic Scanline */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/5 to-transparent animate-scan" />
+                   </div>
+                   <div className="absolute bottom-1 right-1 px-2.5 py-0.5 bg-[#030305] border border-green-500/30 text-green-400 text-[10px] font-bold uppercase rounded-full shadow-[0_0_10px_rgba(34,197,94,0.3)] z-20">
+                     Online
                    </div>
                 </div>
-                {/* Online Status */}
-                <div className="absolute -bottom-3 -right-3 px-3 py-1 bg-green-500 text-black text-[10px] font-black uppercase rounded-full border-2 border-[#0A0A0E] shadow-lg">
-                  Online
-                </div>
-              </div>
 
-              {/* User Info Section */}
-              <div className="mt-6 md:mt-0 flex-grow">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <h5 className="text-cyan-500 font-mono text-xs tracking-[0.2em] uppercase mb-2 flex items-center gap-2">
-                        <ShieldCheck className="w-3 h-3" />
-                        Guardian Identity
-                    </h5>
-                    
-                    <div className="flex items-center gap-4">
-                       <h1 className="text-4xl md:text-6xl font-cinzel font-black text-white tracking-wide drop-shadow-lg break-all">
-                           {user.username}
-                       </h1>
-                    </div>
+                {/* User Details */}
+                <div className="text-center sm:text-left flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-3">
+                    <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-[10px] font-mono text-cyan-200 uppercase tracking-widest">
+                      UID: {user.walletAddress ? user.walletAddress.slice(-6).toUpperCase() : "---"}
+                    </span>
+                    {user.hasPaidEarlyAccess && (
+                      <span className="px-3 py-1 bg-purple-500/10 border border-purple-500/30 rounded-md text-[10px] font-mono text-purple-300 uppercase tracking-widest flex items-center gap-1 shadow-[0_0_10px_rgba(168,85,247,0.1)]">
+                        <ShieldCheck className="w-3 h-3" /> Alpha Commander
+                      </span>
+                    )}
                   </div>
+                  
+                  <h1 className="text-3xl sm:text-5xl font-cinzel font-black text-white mb-4 drop-shadow-lg truncate">
+                    {user.username}
+                  </h1>
 
-                  {/* Wallet Copy Button */}
+                  {/* Wallet Action */}
                   <button 
                     onClick={copyAddress}
-                    className="flex items-center gap-2 bg-black/40 hover:bg-black/60 border border-white/10 hover:border-cyan-500/50 px-5 py-3 rounded-full transition-all group/wallet cursor-pointer"
+                    className="relative overflow-hidden inline-flex items-center gap-3 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-500/50 rounded-xl transition-all w-full sm:w-auto justify-center sm:justify-start group/wallet"
                   >
-                    <Wallet className="w-4 h-4 text-gray-500 group-hover/wallet:text-cyan-400 transition-colors" />
-                    <span className="font-mono text-xs text-gray-400 group-hover/wallet:text-white transition-colors">
-                      {user.walletAddress?.slice(0, 4)}...{user.walletAddress?.slice(-4)}
+                    <Wallet className="w-4 h-4 text-gray-400 group-hover/wallet:text-cyan-400 transition-colors" />
+                    <span className="font-mono text-sm text-gray-300 group-hover/wallet:text-white">
+                      {user.walletAddress ? `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}` : "Connect Wallet"}
                     </span>
-                    {copied ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 text-gray-600 group-hover/wallet:text-white" />}
+                    {copied ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 text-gray-500 group-hover/wallet:text-white" />}
                   </button>
-                </div>
-
-                {/* System ID Line (FIXED: removed telegramId, using Wallet Hash instead) */}
-                <div className="mt-4 flex items-center gap-2 text-xs text-gray-500 font-mono">
-                    <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></div>
-                    System ID: <span className="text-gray-400">UID-{user.walletAddress ? user.walletAddress.slice(-6).toUpperCase() : "UNKNOWN"}</span>
                 </div>
               </div>
             </div>
 
-            {/* --- STATS GRID --- */}
-            <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-white/5 border-t border-white/5 bg-black/20">
-              {statItems.map((item, i) => (
-                <div key={i} className="p-8 flex items-center gap-5 hover:bg-white/[0.02] transition-colors group">
-                  <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center group-hover:scale-110 group-hover:border-white/10 transition-all shadow-inner">
-                    {item.icon}
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mb-1">{item.sub}</p>
-                    <p className="text-2xl font-cinzel font-bold text-white group-hover:text-cyan-100 transition-colors">{item.value}</p>
-                  </div>
-                </div>
-              ))}
+            {/* 2. BADGES & ACHIEVEMENTS (The Requested 4 Badges) */}
+            <div>
+              <div className="flex items-center justify-between mb-4 px-1">
+                 <h3 className="text-lg font-cinzel font-bold text-white flex items-center gap-2">
+                   <Medal className="w-5 h-5 text-yellow-500" />
+                   Service Medals
+                 </h3>
+                 <span className="text-xs text-gray-500 font-mono">3/4 UNLOCKED</span>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {badges.map((badge) => (
+                  <BadgeCard key={badge.id} data={badge} />
+                ))}
+              </div>
+            </div>
+
+            {/* 3. COMMUNICATION MODULES (Socials) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+               <SocialModule 
+                  icon={<Twitter className="w-5 h-5" />}
+                  title="Neural Uplink"
+                  platform="Twitter"
+                  isConnected={user.socialsFollowed.twitter}
+                  color="blue"
+                  link={SOCIAL_LINKS.TWITTER}
+               />
+               <SocialModule 
+                  icon={<Send className="w-5 h-5" />}
+                  title="Command Channel"
+                  platform="Telegram"
+                  isConnected={user.socialsFollowed.telegram}
+                  color="cyan"
+                  link={SOCIAL_LINKS.TELEGRAM}
+               />
             </div>
           </div>
 
-          {/* --- SOCIAL SYNC SECTION --- */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-             
-             {/* Twitter Card */}
-             <div className="p-8 rounded-[2rem] bg-[#0A0A0E] border border-white/10 relative overflow-hidden group hover:border-white/20 transition-all">
-                <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
-                   <Twitter className="w-32 h-32" />
-                </div>
-                <div className="relative z-10">
-                   <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-3">
-                         <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400"><Twitter className="w-5 h-5" /></div>
-                         <h3 className="font-cinzel font-bold text-lg">Neural Uplink (X)</h3>
-                      </div>
-                      {user.socialsFollowed.twitter ? (
-                          <div className="px-3 py-1 rounded-full bg-green-500/10 text-green-400 border border-green-500/20 text-[10px] font-black uppercase flex items-center gap-2">
-                             <CheckCircle2 className="w-3 h-3" /> Synced
-                          </div>
-                      ) : (
-                          <div className="px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20 text-[10px] font-black uppercase">Disconnected</div>
-                      )}
-                   </div>
-                   <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-                      Sync your profile to unlock the <span className="text-white font-bold">Legendary Mint</span> whitelist and receive atmospheric updates.
-                   </p>
-                   {!user.socialsFollowed.twitter && (
-                      <button onClick={() => window.open(SOCIAL_LINKS.TWITTER, '_blank')} className="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold uppercase tracking-widest transition-all">
-                         Initialize Sync
-                      </button>
-                   )}
-                </div>
-             </div>
+          {/* ================= RIGHT COLUMN (Stats & Analytics) ================= */}
+          <div className="lg:col-span-4 space-y-6">
+            
+            {/* A. BALANCE CARD (Primary) */}
+            <div className="p-6 rounded-3xl bg-gradient-to-b from-[#15151a] to-[#0A0A0E] border border-white/10 relative overflow-hidden group hover:border-yellow-500/30 transition-all shadow-xl">
+               <div className="absolute top-[-20%] right-[-20%] w-40 h-40 bg-yellow-500/5 rounded-full blur-3xl group-hover:bg-yellow-500/10 transition-colors"></div>
+               
+               <div className="relative z-10">
+                 <div className="flex items-center justify-between mb-4">
+                    <div className="p-2 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                      <Coins className="w-6 h-6 text-yellow-400" />
+                    </div>
+                    <div className="px-2 py-1 bg-yellow-500/5 border border-yellow-500/10 rounded text-[10px] text-yellow-300 font-bold uppercase tracking-wider">
+                      Pending
+                    </div>
+                 </div>
+                 
+                 <p className="text-gray-400 font-mono text-xs uppercase tracking-widest mb-1">Total Balance</p>
+                 <h2 className="text-4xl font-cinzel font-bold text-white mb-2 tracking-wide">
+                    {user.points.toLocaleString()} <span className="text-sm text-yellow-500">AETH</span>
+                 </h2>
+               </div>
+            </div>
 
-             {/* Telegram Card */}
-             <div className="p-8 rounded-[2rem] bg-[#0A0A0E] border border-white/10 relative overflow-hidden group hover:border-white/20 transition-all">
-                <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
-                   <Send className="w-32 h-32" />
+            {/* B. DAILY STREAK (New Feature) */}
+            <div className="p-6 rounded-3xl bg-[#0A0A0E] border border-white/10 flex items-center justify-between group hover:border-orange-500/30 transition-all">
+                <div>
+                   <p className="text-gray-400 font-mono text-xs uppercase tracking-widest mb-1">Login Streak</p>
+                   <p className="text-2xl font-cinzel font-bold text-white">{userStreak} Days</p>
                 </div>
-                <div className="relative z-10">
-                   <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-3">
-                         <div className="p-2 bg-cyan-500/10 rounded-lg text-cyan-400"><Send className="w-5 h-5" /></div>
-                         <h3 className="font-cinzel font-bold text-lg">Command Channel</h3>
-                      </div>
-                      {user.socialsFollowed.telegram ? (
-                          <div className="px-3 py-1 rounded-full bg-green-500/10 text-green-400 border border-green-500/20 text-[10px] font-black uppercase flex items-center gap-2">
-                             <CheckCircle2 className="w-3 h-3" /> Linked
-                          </div>
-                      ) : (
-                          <div className="px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20 text-[10px] font-black uppercase">Disconnected</div>
-                      )}
-                   </div>
-                   <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-                      Join the <span className="text-cyan-400 font-bold">Guardian Council</span> group to access real-time yield reports.
-                   </p>
-                   {!user.socialsFollowed.telegram && (
-                      <button onClick={() => window.open(SOCIAL_LINKS.TELEGRAM, '_blank')} className="w-full py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 rounded-xl text-white text-xs font-bold uppercase tracking-widest transition-all shadow-lg shadow-cyan-900/20">
-                         Establish Link
-                      </button>
-                   )}
+                <div className="relative w-12 h-12 flex items-center justify-center">
+                   <div className="absolute inset-0 bg-orange-500/20 blur-xl rounded-full animate-pulse"></div>
+                   <Flame className="w-8 h-8 text-orange-500 relative z-10 drop-shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
                 </div>
-             </div>
-          </div>
+            </div>
 
-           {/* Footer Security */}
-           <div className="flex items-center justify-center gap-2 p-6 opacity-40 hover:opacity-100 transition-opacity">
-             <AlertCircle className="w-4 h-4 text-gray-500" />
-             <p className="text-[10px] text-gray-500 uppercase tracking-widest">
-                Identity secured by TON Blockchain • Immutable Record
-             </p>
+            {/* C. SQUADRON STATS */}
+            <div className="p-6 rounded-3xl bg-[#0A0A0E] border border-white/10 group hover:border-cyan-500/30 transition-colors">
+               <div className="flex items-center gap-4 mb-2">
+                  <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
+                     <Users className="w-5 h-5" />
+                  </div>
+                  <p className="text-gray-400 font-mono text-xs uppercase tracking-widest">Squadron</p>
+               </div>
+               <div className="flex items-end gap-2">
+                  <span className="text-2xl font-cinzel font-bold text-white">{user.inviteCount}</span>
+                  <span className="text-sm text-gray-500 mb-1">recruits</span>
+               </div>
+            </div>
+
+            {/* D. LEADERBOARD TEASER (New Feature) */}
+            <div className="relative p-6 rounded-3xl bg-[#08080a] border border-white/5 overflow-hidden">
+               {/* Disabled Overlay */}
+               <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] z-20 flex flex-col items-center justify-center text-center p-4">
+                  <Lock className="w-6 h-6 text-gray-500 mb-2" />
+                  <p className="text-xs font-bold text-gray-300 uppercase tracking-widest">Season 1 Locked</p>
+                  <p className="text-[10px] text-gray-500 mt-1">Coming Soon</p>
+               </div>
+               
+               {/* Background Content (Blurred out visually) */}
+               <div className="opacity-30 blur-sm">
+                  <div className="flex items-center justify-between mb-4">
+                     <p className="font-cinzel font-bold text-white">Global Ranking</p>
+                     <Trophy className="w-4 h-4 text-yellow-500" />
+                  </div>
+                  <div className="space-y-3">
+                     {[1,2,3].map(i => (
+                        <div key={i} className="h-8 bg-white/10 rounded w-full"></div>
+                     ))}
+                  </div>
+               </div>
+            </div>
+
           </div>
 
         </motion.div>
       </div>
     </div>
   );
+};
+
+// --- SUB-COMPONENTS FOR CLEAN CODE ---
+
+// 1. Badge Card Component with Progress Logic
+const BadgeCard = ({ data }: { data: any }) => {
+   const isLocked = data.status === "locked";
+   const isProgress = data.status === "progress";
+   
+   // Dynamic Styles based on Color
+   const colors: Record<string, string> = {
+      yellow: "text-yellow-400 border-yellow-500/40 bg-yellow-500/5 shadow-[0_0_15px_rgba(250,204,21,0.15)]",
+      cyan: "text-cyan-400 border-cyan-500/40 bg-cyan-500/5 shadow-[0_0_15px_rgba(34,211,238,0.15)]",
+      purple: "text-purple-400 border-purple-500/40 bg-purple-500/5 shadow-[0_0_15px_rgba(168,85,247,0.15)]",
+      red: "text-red-400 border-red-500/20 bg-red-500/5", // For the mystery badge
+   };
+
+   return (
+      <div className={`
+         relative flex flex-col items-center text-center p-4 rounded-2xl border transition-all duration-300 h-full
+         ${!isLocked && !isProgress ? colors[data.color] : 'border-white/5 bg-[#0e0e12]'}
+         ${isLocked ? 'opacity-50 grayscale' : 'opacity-100'}
+      `}>
+         
+         {/* Icon Container */}
+         <div className={`
+            w-10 h-10 rounded-full flex items-center justify-center mb-3 border
+            ${!isLocked && !isProgress ? 'bg-[#050505] border-white/10' : 'bg-[#050505] border-white/5 text-gray-600'}
+         `}>
+            {data.icon}
+         </div>
+
+         {/* Text Info */}
+         <h4 className={`text-sm font-bold leading-tight mb-1 ${!isLocked ? 'text-white' : 'text-gray-500'}`}>
+            {data.title}
+         </h4>
+         <p className="text-[10px] text-gray-500 font-mono uppercase tracking-wide">
+            {data.desc}
+         </p>
+
+         {/* 4th Badge Progress Bar Logic */}
+         {isProgress && (
+            <div className="w-full mt-3">
+               <div className="flex justify-between text-[8px] text-red-400 font-mono mb-1">
+                  <span>DECRYPTING</span>
+                  <span>{data.progress}%</span>
+               </div>
+               <div className="w-full h-1 bg-gray-800 rounded-full overflow-hidden">
+                  <div 
+                     className="h-full bg-red-500/50 shadow-[0_0_5px_rgba(239,68,68,0.5)]" 
+                     style={{ width: `${data.progress}%` }} 
+                  />
+               </div>
+            </div>
+         )}
+      </div>
+   );
+};
+
+// 2. Social Module Component
+const SocialModule = ({ icon, title, platform, isConnected, color, link }: any) => {
+   return (
+      <div className="flex items-center justify-between p-4 rounded-2xl bg-[#0e0e12] border border-white/5 hover:border-white/10 transition-colors group">
+         <div className="flex items-center gap-3">
+            <div className={`p-2.5 rounded-xl bg-${color}-500/10 text-${color}-400 group-hover:scale-105 transition-transform`}>
+               {icon}
+            </div>
+            <div>
+               <p className="text-white font-bold text-sm leading-none mb-1">{title}</p>
+               <p className={`text-[10px] uppercase font-bold tracking-wider ${isConnected ? 'text-green-500' : 'text-gray-500'}`}>
+                  {isConnected ? 'Linked' : 'Not Linked'}
+               </p>
+            </div>
+         </div>
+         
+         {!isConnected ? (
+            <button 
+               onClick={() => window.open(link, '_blank')} 
+               className="px-4 py-1.5 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-lg text-[10px] font-bold text-white uppercase tracking-widest transition-all"
+            >
+               Connect
+            </button>
+         ) : (
+            <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
+               <CheckCircle2 className="w-4 h-4 text-green-500" />
+            </div>
+         )}
+      </div>
+   );
 };
 
 export default Profile;

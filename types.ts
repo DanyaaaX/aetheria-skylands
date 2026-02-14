@@ -1,4 +1,3 @@
-
 export interface Socials {
   twitter: boolean;
   telegram: boolean;
@@ -10,13 +9,20 @@ export interface User {
   walletAddress: string;
   publicKey: string;
   referralCode: string;
-  referredBy?: string | null;
+  referredBy?: string | null; // Може бути undefined або null
   inviteCount: number;
   points: number;
+  
   hasPaidEarlyAccess: boolean;
-  hasMintedNFT: boolean;
+  
+  // Об'єднано: hasMintedNFT та hasNft. 
+  // Використовуємо це поле для бейджа "Genesis Owner"
+  hasMintedNFT: boolean; 
+
   socialsFollowed: Socials;
-  createdAt: string;
+  
+  // Використовується для перевірки "Early Adopter" (наприклад, if createdAt < TGE Date)
+  createdAt: string; 
   updatedAt: string;
 }
 
