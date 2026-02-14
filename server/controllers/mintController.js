@@ -1,85 +1,52 @@
-const User = require('../models/User');
-// Тобі знадобиться axios для запитів до API блокчейну
-// npm install axios
-const axios = require('axios');
+import { useTonConnectUI } from '@tonconnect/ui-react';
+import axios from 'axios';
+import { toast } from 'react-hot-toast'; // Або твій варіант повідомлень
 
-// Твій гаманець, куди мають приходити гроші за мінт
-const ADMIN_WALLET_ADDRESS = "UQDCOmFcYz_Tvf7clsf9iGNTCIkI9oIg869O2YyBkc4mWPQT"; 
+// ... всередині компонента ...
 
-exports.verifyMint = async (req, res) => {
-  const { walletAddress, transactionHash } = req.body;
+const [tonConnectUI] = useTonConnectUI();
 
-  if (!walletAddress || !transactionHash) {
-    return res.status(400).json({ message: "Дані відсутні" });
-  }
-
-  try {
-    // 1. ПЕРЕВІРКА: Чи ми вже обробляли цю транзакцію? (Захист від повторного використання)
-    const existingUsage = await User.findOne({ 'mintTransactionHash': transactionHash });
-    if (existingUsage) {
-      return res.status(409).json({ message: "Ця транзакція вже використана!" });
+const handleMint = async () => {
+    // 1. Перевірка: чи підключений гаманець
+    if (!tonConnectUI.connected) {
+        toast.error("Спочатку підключіть гаманець!");
+        return;
     }
 
-    // 2. ЗАПИТ ДО БЛОКЧЕЙНУ (Використовуємо TonCenter або TonApi)
-    // Для Mainnet: https://toncenter.com/api/v2/jsonRPC
-    // Тобі може знадобитися API KEY від TonCenter (він безкоштовний у них в боті)
-    
-    // Приклад логіки перевірки (спрощено):
-    console.log(`Verifying TX: ${transactionHash} for ${walletAddress}`);
-    
-    // Тут ми робимо реальний запит до API TON, щоб перевірити транзакцію
-    // У реальному проекті використовуй бібліотеку 'ton' або API запит:
-    /*
-    const response = await axios.get(`https://toncenter.com/api/v2/getTransaction?hash=${transactionHash}...`);
-    const txData = response.data;
-    
-    // Перевіряємо:
-    // a) Чи отримувач == ADMIN_WALLET_ADDRESS?
-    // b) Чи сума >= вартості мінту?
-    // c) Чи транзакція успішна?
-    */
+    try {
+        // 2. Формування транзакції (0.5 TON наприклад)
+        const transaction = {
+            validUntil: Math.floor(Date.now() / 1000) + 60, // 60 секунд на оплату
+            messages: [
+                {
+                    address: "UQDCOmFcYz_Tvf7clsf9iGNTCIkI9oIg869O2YyBkc4mWPQT", // Твій гаманець адміна
+                    amount: "500000000", // 0.5 TON у нанотонах (1 TON = 1 000 000 000)
+                },
+            ],
+        };
 
-    // --- СИМУЛЯЦІЯ ДЛЯ ТЕСТУ (Поки не підключиш реальне API) ---
-    const isTxValid = true; // Заміни на реальну перевірку!
-    
-    if (!isTxValid) {
-      return res.status(400).json({ message: "Транзакція невалідна або не знайдена" });
+        // 3. Виклик гаманця (TonKeeper)
+        const result = await tonConnectUI.sendTransaction(transaction);
+
+        // 4. Якщо успішно — відправляємо хеш на твій бекенд для перевірки
+        // Важливо: boc — це "мішок з клітинками", хеш треба дістати (або відправити boc як є)
+        // Для простоти часто відправляють boc, а бекенд його розбирає, 
+        // або просто ігнорують перевірку хешу на етапі тесту.
+        
+        const boc = result.boc; // Це підтвердження транзакції
+
+        // 5. Запит на твій сервер (Render)
+        await axios.post('https://aetheria-skylands.onrender.com/api/mint/verify', {
+            walletAddress: tonConnectUI.account?.address,
+            transactionHash: boc // Поки що передаємо boc як хеш
+        });
+
+        toast.success("NFT успішно замінтлено! Перевірте профіль.");
+
+    } catch (error) {
+        console.error("Mint Error:", error);
+        toast.error("Мінту скасовано або сталася помилка.");
     }
-
-    // 3. ОНОВЛЕННЯ КОРИСТУВАЧА
-    const user = await User.findOneAndUpdate(
-      { walletAddress: walletAddress }, // Знаходимо по гаманцю
-      { 
-        $set: { 
-          hasNFT: true, 
-          mintTransactionHash: transactionHash, // Зберігаємо хеш, щоб не юзали двічі
-          isPremium: true 
-        },
-        $inc: { points: 1000 } // Бонус за мінт
-      },
-      { new: true }
-    );
-
-    if (!user) {
-      return res.status(404).json({ message: "Користувача не знайдено" });
-    }
-
-    // 4. НАРАХУВАННЯ РЕФЕРАЛУ (Якщо користувача хтось запросив)
-    if (user.referredBy) {
-        await User.findOneAndUpdate(
-            { username: user.referredBy },
-            { $inc: { points: 500, inviteCount: 1 } } // Бонус рефереру
-        );
-    }
-
-    return res.status(200).json({ 
-      success: true, 
-      message: "NFT успішно підтверджено!", 
-      user: user 
-    });
-
-  } catch (error) {
-    console.error("Mint Error:", error);
-    return res.status(500).json({ message: "Помилка сервера при перевірці" });
-  }
 };
+
+// ... У кнопці: onClick={handleMint}
