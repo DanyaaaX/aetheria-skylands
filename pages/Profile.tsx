@@ -1,267 +1,203 @@
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
-import { User as UserIcon, Wallet, Coins, Users, Edit3, Save, CheckCircle2, AlertCircle, Loader2, Twitter, Send } from 'lucide-react';
+import { 
+  User as UserIcon, Wallet, Coins, Users, 
+  CheckCircle2, Twitter, Send, Copy, ShieldCheck, AlertCircle 
+} from 'lucide-react';
 import { User } from '../types';
-import { SOCIAL_LINKS, API_BASE_URL } from '../constants';
+import { SOCIAL_LINKS } from '../constants';
 
 interface ProfileProps {
   user: User | null;
+  // setUser більше не потрібен для редагування, але залишаємо, якщо пропси вимагають типізації
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
 }
 
-const Profile: React.FC<ProfileProps> = ({ user, setUser }) => {
-  const [tonConnectUI] = useTonConnectUI();
-  const wallet = useTonWallet();
-  const [isEditing, setIsEditing] = useState(false);
-  const [newUsername, setNewUsername] = useState(user?.username || '');
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [updateError, setUpdateError] = useState('');
-  const [updateSuccess, setUpdateSuccess] = useState(false);
+const Profile: React.FC<ProfileProps> = ({ user }) => {
+  const [copied, setCopied] = useState(false);
 
   if (!user) return null;
 
-  const handleUpdateUsername = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanUsername = newUsername.trim().toUpperCase();
-    
-    if (cleanUsername === user.username) {
-      setIsEditing(false);
-      return;
-    }
-
-    if (cleanUsername.length < 3) {
-      setUpdateError("Handle must be at least 3 characters.");
-      return;
-    }
-
-    setIsUpdating(true);
-    setUpdateError('');
-    setUpdateSuccess(false);
-
-    try {
-      // 1. Get Nonce from Backend
-      const nonceRes = await fetch(`${API_BASE_URL}/api/auth/nonce/${user.walletAddress}`);
-      const { nonce } = await nonceRes.json();
-      const message = `Aetheria Identity Update: ${nonce}`;
-
-      // 2. Request Signature from Wallet
-      // NOTE: We attempt to assume the wallet supports signing if connected.
-      // Since the standard UI kit doesn't expose a direct 'signMessage' helper for all wallets,
-      // we check for custom provider methods or fall back to sending the connection proof if applicable.
-      // For this production code, we assume the user's wallet provider adheres to standard signing 
-      // or we throw a clear error if they cannot sign.
-      
-      let signature = '';
-      
-      // Attempt 1: Try standard provider signature (if available on window object or connector)
-      // This is highly wallet-dependent. 
-      // If this fails, we catch it.
-      
-      // Mocking the "Sign" action for the user to confirm via UI if explicit method missing
-      // In a strict Web3 app, we would use:
-      // const result = await tonConnectUI.connector.signData( ... ); 
-      
-      // FALLBACK FOR PRODUCTION SAFETY:
-      // If we cannot trigger a pure sign, we ask the user to re-verify. 
-      // For this implementation, we will assume the wallet provided a valid key on login
-      // and if we can't sign now, we block the update to be safe.
-      
-      // TODO: Replace with `tonConnectUI.connector.signData` when fully supported by all wallets.
-      // For now, we simulate the signature payload to pass the backend check IF AND ONLY IF
-      // we are in a dev environment. But since this is PROD, we must fail if we can't sign.
-      
-      // CRITICAL: Since `tonConnectUI` v2 doesn't expose `signData` universally, 
-      // and we removed the backend mock, this button WILL FAIL for wallets that don't support it.
-      // We will try to send a transaction with 0 value as proof (Gas cost applies).
-      
-      throw new Error("Wallet signing not supported by your provider. Please use a standard TON wallet.");
-
-      // UNREACHABLE CODE UNTIL WALLET SUPPORT CONFIRMED:
-      /*
-      const res = await fetch(`${API_BASE_URL}/api/auth/update-username`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          walletAddress: user.walletAddress,
-          publicKey: user.publicKey, 
-          newUsername: cleanUsername,
-          signature: signature,
-          message: message
-        })
-      });
-      */
-
-    } catch (err: any) {
-      console.error(err);
-      // Friendly error for the user since signing is tricky
-      setUpdateError(err.message || "Security signature failed. Your wallet may not support message signing.");
-    } finally {
-      setIsUpdating(false);
+  // Функція копіювання адреси
+  const copyAddress = () => {
+    if (user.walletAddress) {
+      navigator.clipboard.writeText(user.walletAddress);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
   const statItems = [
-    { icon: <Coins className="w-5 h-5 text-yellow-400" />, label: "Aether Pts", value: user.points },
-    { icon: <Users className="w-5 h-5 text-cyan-400" />, label: "Recruits", value: user.inviteCount },
-    { icon: <CheckCircle2 className="w-5 h-5 text-green-400" />, label: "Tier", value: user.hasPaidEarlyAccess ? "Alpha" : "Initiate" },
+    { icon: <Coins className="w-6 h-6 text-yellow-400" />, label: "Aether Balance", value: user.points.toLocaleString(), sub: "PENDING AIRDROP" },
+    { icon: <Users className="w-6 h-6 text-cyan-400" />, label: "Squadron", value: user.inviteCount, sub: "ACTIVE RECRUITS" },
+    { icon: <ShieldCheck className="w-6 h-6 text-purple-400" />, label: "Clearance", value: user.hasPaidEarlyAccess ? "ALPHA COMMANDER" : "INITIATE", sub: "ACCESS LEVEL" },
   ];
 
   return (
-    <div className="max-w-4xl mx-auto py-12 px-4">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-8"
-      >
-        {/* Header / Identity Card */}
-        <div className="bg-[#0a0a0a] border border-white/10 rounded-[2.5rem] p-8 md:p-12 backdrop-blur-3xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-5">
-            <UserIcon className="w-48 h-48" />
-          </div>
+    <div className="relative min-h-screen w-full text-white overflow-hidden pb-20">
+      
+      {/* --- BACKGROUND AMBIENCE --- */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[10%] left-[-10%] w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[100px]" />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>
+      </div>
+
+      <div className="relative z-10 max-w-5xl mx-auto pt-10 px-6">
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-8"
+        >
           
-          <div className="flex flex-col md:flex-row gap-10 items-center md:items-start relative z-10">
-            <div className="w-32 h-32 bg-gradient-to-br from-cyan-500 to-indigo-600 rounded-[2rem] flex items-center justify-center shadow-[0_0_50px_rgba(34,211,238,0.2)] border border-white/10 shrink-0">
-              <UserIcon className="w-16 h-16 text-white" />
-            </div>
-
-            <div className="flex-grow space-y-4 text-center md:text-left">
-              <div className="space-y-1">
-                <span className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.4em]">Guardian Handle</span>
-                <div className="flex items-center justify-center md:justify-start gap-4">
-                  {isEditing ? (
-                    <form onSubmit={handleUpdateUsername} className="flex gap-2">
-                      <input 
-                        type="text"
-                        value={newUsername}
-                        autoFocus
-                        onChange={(e) => setNewUsername(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())}
-                        className="bg-black/60 border border-cyan-500/50 rounded-xl px-4 py-2 text-white outline-none font-cinzel tracking-widest text-lg w-full md:w-auto"
-                        maxLength={15}
-                      />
-                      <button 
-                        type="submit" 
-                        disabled={isUpdating}
-                        className="p-2 bg-cyan-500 rounded-xl text-black hover:bg-cyan-400 transition-colors"
-                      >
-                        {isUpdating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                      </button>
-                    </form>
-                  ) : (
-                    <>
-                      <h2 className="text-4xl md:text-5xl font-cinzel font-bold text-white tracking-widest uppercase break-all">
-                        {user.username}
-                      </h2>
-                      {/* 
-                         DISABLED EDIT BUTTON FOR PRODUCTION MVP 
-                         Reason: Reliable wallet signing is not yet universal in React UI Kit.
-                         We disable this to prevent user frustration until V2 signing is stable.
-                      */}
-                      {/* 
-                      <button 
-                        onClick={() => setIsEditing(true)}
-                        className="p-2 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      */}
-                    </>
-                  )}
+          {/* --- MAIN IDENTITY CARD --- */}
+          <div className="relative group rounded-[2.5rem] bg-[#0A0A0E] border border-white/10 overflow-hidden shadow-2xl">
+            {/* Animated Header Background */}
+            <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-cyan-900/40 via-purple-900/40 to-indigo-900/40"></div>
+            
+            <div className="relative px-8 pb-10 pt-16 md:px-12 md:flex md:items-end gap-8">
+              
+              {/* Avatar Section */}
+              <div className="relative shrink-0">
+                <div className="w-36 h-36 rounded-3xl bg-[#050505] border-2 border-cyan-500/30 p-1 shadow-[0_0_40px_rgba(6,182,212,0.2)] flex items-center justify-center relative z-10">
+                   <div className="w-full h-full rounded-2xl bg-gradient-to-br from-gray-800 to-black flex items-center justify-center overflow-hidden relative">
+                      <UserIcon className="w-16 h-16 text-gray-400" />
+                      {/* Scanline Effect */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/10 to-transparent animate-scan" />
+                   </div>
                 </div>
-                {updateError && <p className="text-xs text-red-400 font-bold uppercase mt-2">{updateError}</p>}
-                {updateSuccess && <p className="text-xs text-green-400 font-bold uppercase mt-2">Identity Updated</p>}
-              </div>
-
-              <div className="space-y-1">
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em]">Aether Address</span>
-                <div className="flex items-center justify-center md:justify-start gap-2 bg-white/5 rounded-full px-4 py-2 w-fit mx-auto md:mx-0 border border-white/5">
-                  <Wallet className="w-3 h-3 text-gray-500" />
-                  <span className="text-[10px] font-mono text-gray-400">
-                    {user.walletAddress?.slice(0, 10)}...{user.walletAddress?.slice(-8)}
-                  </span>
+                {/* Status Indicator */}
+                <div className="absolute -bottom-3 -right-3 px-3 py-1 bg-green-500 text-black text-[10px] font-black uppercase rounded-full border-2 border-[#0A0A0E] shadow-lg">
+                  Online
                 </div>
               </div>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-12 pt-12 border-t border-white/5">
-            {statItems.map((item, i) => (
-              <div key={i} className="bg-white/5 rounded-2xl p-6 flex items-center gap-4 border border-white/5">
-                <div className="p-3 bg-black/40 rounded-xl border border-white/5">
-                  {item.icon}
-                </div>
-                <div>
-                  <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">{item.label}</p>
-                  <p className="text-xl font-cinzel font-bold text-white">{item.value}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+              {/* User Info Section */}
+              <div className="mt-6 md:mt-0 flex-grow">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h5 className="text-cyan-500 font-mono text-xs tracking-[0.2em] uppercase mb-2 flex items-center gap-2">
+                        <ShieldCheck className="w-3 h-3" />
+                        Commander Identity
+                    </h5>
+                    
+                    <div className="flex items-center gap-4">
+                       <h1 className="text-4xl md:text-6xl font-cinzel font-black text-white tracking-wide drop-shadow-lg">
+                           {user.username}
+                       </h1>
+                    </div>
+                  </div>
 
-        {/* Social Synchronization Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="bg-[#0a0a0a] border border-white/10 rounded-[2rem] p-8 backdrop-blur-xl">
-            <h3 className="text-lg font-cinzel font-bold text-white mb-6 tracking-widest flex items-center gap-3">
-              <Twitter className="w-5 h-5 text-cyan-400" /> Twitter Integration
-            </h3>
-            <div className="space-y-4">
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Sync your X profile to unlock the Legendary Mint and receive atmospheric updates from the Skylands.
-              </p>
-              <div className="flex items-center justify-between p-4 bg-black/40 border border-white/5 rounded-2xl">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Status</span>
-                {user.socialsFollowed.twitter ? (
-                  <span className="px-3 py-1 bg-green-500/10 text-green-400 rounded-full text-[10px] font-black uppercase border border-green-500/20">Synced</span>
-                ) : (
+                  {/* Wallet Address Chip */}
                   <button 
-                    onClick={() => window.open(SOCIAL_LINKS.TWITTER, '_blank')}
-                    className="px-4 py-2 bg-cyan-500/10 text-cyan-400 rounded-xl text-[10px] font-black uppercase border border-cyan-500/20 hover:bg-cyan-500 hover:text-black transition-all"
+                    onClick={copyAddress}
+                    className="flex items-center gap-2 bg-black/40 hover:bg-black/60 border border-white/10 hover:border-cyan-500/50 px-5 py-3 rounded-full transition-all group/wallet"
                   >
-                    Sync Profile
+                    <Wallet className="w-4 h-4 text-gray-500 group-hover/wallet:text-cyan-400 transition-colors" />
+                    <span className="font-mono text-xs text-gray-400 group-hover/wallet:text-white transition-colors">
+                      {user.walletAddress?.slice(0, 4)}...{user.walletAddress?.slice(-4)}
+                    </span>
+                    {copied ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 text-gray-600 group-hover/wallet:text-white" />}
                   </button>
-                )}
+                </div>
+
+                <div className="mt-4 flex items-center gap-2 text-xs text-gray-500 font-mono">
+                    <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></div>
+                    System ID: <span className="text-gray-400">{user.telegramId || "UNKNOWN"}</span>
+                </div>
               </div>
+            </div>
+
+            {/* --- STATS GRID --- */}
+            <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-white/5 border-t border-white/5 bg-black/20">
+              {statItems.map((item, i) => (
+                <div key={i} className="p-8 flex items-center gap-5 hover:bg-white/[0.02] transition-colors group">
+                  <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center group-hover:scale-110 group-hover:border-white/10 transition-all shadow-inner">
+                    {item.icon}
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mb-1">{item.sub}</p>
+                    <p className="text-2xl font-cinzel font-bold text-white group-hover:text-cyan-100 transition-colors">{item.value}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="bg-[#0a0a0a] border border-white/10 rounded-[2rem] p-8 backdrop-blur-xl">
-            <h3 className="text-lg font-cinzel font-bold text-white mb-6 tracking-widest flex items-center gap-3">
-              <Send className="w-5 h-5 text-purple-400" /> Telegram Comms
-            </h3>
-            <div className="space-y-4">
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Connect your Telegram account to join the Guardian Councils and receive real-time yield reports.
-              </p>
-              <div className="flex items-center justify-between p-4 bg-black/40 border border-white/5 rounded-2xl">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Status</span>
-                {user.socialsFollowed.telegram ? (
-                  <span className="px-3 py-1 bg-green-500/10 text-green-400 rounded-full text-[10px] font-black uppercase border border-green-500/20">Linked</span>
-                ) : (
-                  <button 
-                    onClick={() => window.open(SOCIAL_LINKS.TELEGRAM, '_blank')}
-                    className="px-4 py-2 bg-purple-500/10 text-purple-400 rounded-xl text-[10px] font-black uppercase border border-purple-500/20 hover:bg-purple-500 hover:text-black transition-all"
-                  >
-                    Link Account
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+          {/* --- SOCIAL SYNC SECTION --- */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+             {/* Twitter Card */}
+             <div className="p-8 rounded-[2rem] bg-[#0A0A0E] border border-white/10 relative overflow-hidden group hover:border-white/20 transition-all">
+                <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+                   <Twitter className="w-32 h-32" />
+                </div>
+                <div className="relative z-10">
+                   <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                         <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400"><Twitter className="w-5 h-5" /></div>
+                         <h3 className="font-cinzel font-bold text-lg">Neural Uplink (X)</h3>
+                      </div>
+                      {user.socialsFollowed.twitter ? (
+                          <div className="px-3 py-1 rounded-full bg-green-500/10 text-green-400 border border-green-500/20 text-[10px] font-black uppercase flex items-center gap-2">
+                             <CheckCircle2 className="w-3 h-3" /> Synced
+                          </div>
+                      ) : (
+                          <div className="px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20 text-[10px] font-black uppercase">Disconnected</div>
+                      )}
+                   </div>
+                   <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+                      Sync your profile to unlock the <span className="text-white font-bold">Legendary Mint</span> whitelist and receive atmospheric updates.
+                   </p>
+                   {!user.socialsFollowed.twitter && (
+                      <button onClick={() => window.open(SOCIAL_LINKS.TWITTER, '_blank')} className="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold uppercase tracking-widest transition-all">
+                         Initialize Sync
+                      </button>
+                   )}
+                </div>
+             </div>
 
-        {/* Security / Risk Section */}
-        <div className="p-6 bg-red-500/5 border border-red-500/20 rounded-[2rem] flex items-start gap-4">
-          <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-          <div className="space-y-1">
-            <h4 className="text-xs font-black text-red-400 uppercase tracking-widest">Registry Security</h4>
-            <p className="text-[10px] text-gray-500 leading-relaxed uppercase">
-              Your handle is your legacy. Choose wisely as renaming may be restricted in future phases of the Aetheria Awakening. Your wallet remains the immutable master key to your floating assets.
-            </p>
+             {/* Telegram Card */}
+             <div className="p-8 rounded-[2rem] bg-[#0A0A0E] border border-white/10 relative overflow-hidden group hover:border-white/20 transition-all">
+                <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+                   <Send className="w-32 h-32" />
+                </div>
+                <div className="relative z-10">
+                   <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                         <div className="p-2 bg-cyan-500/10 rounded-lg text-cyan-400"><Send className="w-5 h-5" /></div>
+                         <h3 className="font-cinzel font-bold text-lg">Command Channel</h3>
+                      </div>
+                      {user.socialsFollowed.telegram ? (
+                          <div className="px-3 py-1 rounded-full bg-green-500/10 text-green-400 border border-green-500/20 text-[10px] font-black uppercase flex items-center gap-2">
+                             <CheckCircle2 className="w-3 h-3" /> Linked
+                          </div>
+                      ) : (
+                          <div className="px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20 text-[10px] font-black uppercase">Disconnected</div>
+                      )}
+                   </div>
+                   <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+                      Join the <span className="text-cyan-400 font-bold">Guardian Council</span> group to access real-time yield reports and raid alerts.
+                   </p>
+                   {!user.socialsFollowed.telegram && (
+                      <button onClick={() => window.open(SOCIAL_LINKS.TELEGRAM, '_blank')} className="w-full py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 rounded-xl text-white text-xs font-bold uppercase tracking-widest transition-all shadow-lg shadow-cyan-900/20">
+                         Establish Link
+                      </button>
+                   )}
+                </div>
+             </div>
           </div>
-        </div>
-      </motion.div>
+
+           {/* Security / Info Footer */}
+           <div className="flex items-center justify-center gap-2 p-6 opacity-40 hover:opacity-100 transition-opacity">
+             <AlertCircle className="w-4 h-4 text-gray-500" />
+             <p className="text-[10px] text-gray-500 uppercase tracking-widest">
+                Identity secured by TON Blockchain • Immutable Record
+             </p>
+          </div>
+
+        </motion.div>
+      </div>
     </div>
   );
 };
