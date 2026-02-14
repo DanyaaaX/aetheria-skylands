@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
@@ -13,7 +14,8 @@ import {
   Loader2, 
   Twitter,
   Send,
-  ExternalLink
+  ExternalLink,
+  Box 
 } from 'lucide-react';
 import { User } from '../types';
 import ReferralCard from '../components/ReferralCard';
@@ -41,7 +43,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
         </motion.div>
         <h2 className="text-4xl font-cinzel font-bold mb-4">Neural Link Required</h2>
         <p className="text-gray-400 mb-10 max-w-md mx-auto leading-relaxed">
-          The Skylands registry is currently offline for your signature. Connect your TON wallet to authenticate.
+           The Skylands registry is currently offline for your signature. Connect your TON wallet to authenticate.
         </p>
         <button onClick={() => tonConnectUI.openModal()} className="px-10 py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black rounded-full transition-all shadow-lg shadow-cyan-500/30 uppercase tracking-[0.2em] text-sm">
           Connect Wallet
@@ -90,7 +92,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
       let attempts = 0;
       const maxAttempts = 20; // 20 attempts * 3 seconds = 1 minute wait
       let verified = false;
-
       while (attempts < maxAttempts && !verified) {
           try {
               // Poll backend to check if payment was received
@@ -105,7 +106,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
               const data = await res.json();
 
               if (data.success && data.user.hasPaidEarlyAccess) {
-                  setUser(data.user); // Update user state
+                  setUser(data.user);
+                  // Update user state
                   verified = true;
                   break; 
               }
@@ -161,7 +163,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
   }
 
   const inviteProgress = Math.min((user.inviteCount / INVITES_FOR_EA) * 100, 100);
-
+  
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 space-y-12">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -246,36 +248,133 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
             )}
           </StageItem>
 
-          <StageItem 
-            title="Stage 3: Legendary Mint"
-            desc="Claim your Genesis artifact (Requires Stage 2 + Social Follows)."
-            isComplete={user.hasMintedNFT}
-            status={user.hasPaidEarlyAccess ? "active" : "locked"}
-          >
-            {user.hasPaidEarlyAccess && !user.hasMintedNFT && (
-              <div className="mt-6 space-y-4">
-                <div className="flex gap-4">
-                  <SocialBtn 
-                    icon={<Twitter className="w-4 h-4" />} 
-                    label="Follow X" 
-                    active={user.socialsFollowed.twitter} 
-                    onClick={() => handleSocialVerify('twitter')} 
-                  />
-                  <SocialBtn 
-                    icon={<Send className="w-4 h-4" />} 
-                    label="Join TG" 
-                    active={user.socialsFollowed.telegram} 
-                    onClick={() => handleSocialVerify('telegram')} 
-                  />
+          {/* --- STAGE 3: LEGENDARY MINT (ULTIMATE EDITION) --- */}
+          <div className={`relative rounded-[2rem] border transition-all overflow-hidden group ${
+            user.hasPaidEarlyAccess 
+              ? 'bg-[#0b0c15] border-purple-500/30 shadow-[0_0_50px_-15px_rgba(168,85,247,0.2)]' 
+              : 'bg-white/5 border-white/5 opacity-60 grayscale'
+          }`}>
+            
+            {/* Фонове світіння */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-purple-600/10 rounded-full blur-[80px] -z-10 group-hover:bg-purple-600/20 transition-all duration-1000"></div>
+
+            <div className="p-8 flex flex-col md:flex-row gap-8 items-center">
+              
+              {/* --- ЛІВА ЧАСТИНА: ЛЕВІТУЮЧИЙ КУБ --- */}
+              <div className="relative shrink-0">
+                {/* Анімація левітації */}
+                <motion.div
+                  animate={user.hasPaidEarlyAccess ? { y: [-5, 5, -5], rotate: [0, 2, -2, 0] } : {}}
+                  transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+                  className="relative z-10"
+                >
+                  {/* Іконка куба або картинка */}
+                  <div className={`w-24 h-24 rounded-2xl flex items-center justify-center border backdrop-blur-md transition-all duration-500 ${
+                     user.hasMintedNFT 
+                       ? 'bg-green-500/10 border-green-500 text-green-400 shadow-[0_0_30px_rgba(34,197,94,0.4)]'
+                       : (user.socialsFollowed.twitter && user.socialsFollowed.telegram)
+                         ? 'bg-purple-600/20 border-purple-500 text-purple-400 shadow-[0_0_30px_rgba(168,85,247,0.5)]'
+                         : 'bg-white/5 border-white/10 text-gray-600'
+                  }`}>
+                     {user.hasMintedNFT ? (
+                       <CheckCircle2 className="w-10 h-10" />
+                     ) : (
+                       <Box className="w-10 h-10 stroke-[1.5]" />
+                     )}
+                  </div>
+                </motion.div>
+                
+                {/* Тінь під кубом */}
+                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-16 h-2 bg-black/50 blur-md rounded-full"></div>
+              </div>
+
+              {/* --- ПРАВА ЧАСТИНА: КОНТЕНТ --- */}
+              <div className="flex-grow w-full">
+                <div className="flex items-center gap-3 mb-2">
+                  <h3 className="text-2xl font-cinzel font-bold tracking-widest text-white uppercase drop-shadow-md">
+                    STAGE 3: LEGENDARY MINT
+                  </h3>
+                  
+                  {user.hasPaidEarlyAccess && !user.hasMintedNFT && (
+                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500 text-white animate-pulse">
+                       LIVE
+                     </span>
+                  )}
                 </div>
-                {user.socialsFollowed.twitter && user.socialsFollowed.telegram && (
-                  <button className="w-full py-4 bg-purple-600 rounded-xl font-bold uppercase tracking-widest text-xs shadow-lg shadow-purple-500/20">
-                    Mint Legendary Artifact
+                
+                <p className="text-gray-400 text-xs font-medium uppercase tracking-widest mb-6">
+                  Claim your Genesis Artifact.
+                  <span className="text-purple-400">Rarity revealed after mint.</span>
+                </p>
+
+                {/* Кнопки завдань */}
+                <div className={`space-y-4 transition-all ${!user.hasPaidEarlyAccess ? 'blur-[2px] pointer-events-none' : ''}`}>
+                  
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => handleSocialVerify('twitter')}
+                      className={`flex-1 py-3 rounded-lg border flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
+                        user.socialsFollowed.twitter 
+                        ? 'bg-green-900/20 border-green-500/50 text-green-400' 
+                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:border-white/30'
+                      }`}
+                    >
+                      {user.socialsFollowed.twitter ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Twitter className="w-3.5 h-3.5" />}
+                      FOLLOW X
+                    </button>
+
+                    <button 
+                      onClick={() => handleSocialVerify('telegram')}
+                      className={`flex-1 py-3 rounded-lg border flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
+                        user.socialsFollowed.telegram 
+                        ? 'bg-green-900/20 border-green-500/50 text-green-400' 
+                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:border-white/30'
+                      }`}
+                    >
+                      {user.socialsFollowed.telegram ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
+                      JOIN TG
+                    </button>
+                  </div>
+
+                  {/* ГОЛОВНА КНОПКА МІНТУ */}
+                  <button
+                    disabled={!user.socialsFollowed.twitter || !user.socialsFollowed.telegram || user.hasMintedNFT}
+                    className={`w-full py-4 rounded-xl font-black uppercase tracking-[0.2em] text-sm shadow-xl transition-all flex items-center justify-center gap-3 relative overflow-hidden group/btn ${
+                      user.hasMintedNFT 
+                      ? 'bg-green-600 text-white cursor-default'
+                      : (user.socialsFollowed.twitter && user.socialsFollowed.telegram)
+                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white ring-1 ring-purple-400/50'
+                        : 'bg-[#15151a] text-gray-600 border border-white/5 cursor-not-allowed'
+                    }`}
+                  >
+                    {/* Ефект блиску на кнопці */}
+                    {(user.socialsFollowed.twitter && user.socialsFollowed.telegram && !user.hasMintedNFT) && (
+                       <div className="absolute top-0 -left-full w-1/2 h-full bg-white/20 skew-x-[25deg] group-hover/btn:animate-shine" />
+                    )}
+
+                    {user.hasMintedNFT ? (
+                      <> <CheckCircle2 className="w-5 h-5" /> ARTIFACT SECURED </>
+                    ) : (user.socialsFollowed.twitter && user.socialsFollowed.telegram) ? (
+                      <> <Zap className="w-5 h-5 fill-current" /> MINT LEGENDARY ARTIFACT </>
+                    ) : (
+                      <> <Lock className="w-4 h-4" /> COMPLETE TASKS TO UNLOCK </>
+                    )}
                   </button>
-                )}
+                </div>
+              </div>
+            </div>
+
+            {/* ШТОРКА БЛОКУВАННЯ (ЯКЩО STAGE 2 НЕ КУПЛЕНО) */}
+            {!user.hasPaidEarlyAccess && (
+              <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[#050505]/60 backdrop-blur-[3px]">
+                <Lock className="w-8 h-8 text-gray-500 mb-2 opacity-80" />
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border border-white/10 px-3 py-1 rounded-full bg-black/80">
+                  Requires Stage 2 Access
+                </p>
               </div>
             )}
-          </StageItem>
+          </div>
+
         </div>
       </div>
     </div>
