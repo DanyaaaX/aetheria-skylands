@@ -9,7 +9,8 @@ import { SOCIAL_LINKS } from '../constants';
 
 interface ProfileProps {
   user: User | null;
-  // setUser більше не потрібен для редагування, але залишаємо, якщо пропси вимагають типізації
+  // Ми залишаємо setUser в інтерфейсі, щоб не ламався батьківський компонент,
+  // навіть якщо тут ми його не використовуємо (бо прибрали редагування).
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
 }
 
@@ -18,7 +19,7 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
 
   if (!user) return null;
 
-  // Функція копіювання адреси
+  // Логіка копіювання адреси (додав, бо це зручно для юзера)
   const copyAddress = () => {
     if (user.walletAddress) {
       navigator.clipboard.writeText(user.walletAddress);
@@ -28,18 +29,34 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
   };
 
   const statItems = [
-    { icon: <Coins className="w-6 h-6 text-yellow-400" />, label: "Aether Balance", value: user.points.toLocaleString(), sub: "PENDING AIRDROP" },
-    { icon: <Users className="w-6 h-6 text-cyan-400" />, label: "Squadron", value: user.inviteCount, sub: "ACTIVE RECRUITS" },
-    { icon: <ShieldCheck className="w-6 h-6 text-purple-400" />, label: "Clearance", value: user.hasPaidEarlyAccess ? "ALPHA COMMANDER" : "INITIATE", sub: "ACCESS LEVEL" },
+    { 
+      icon: <Coins className="w-6 h-6 text-yellow-400" />, 
+      label: "Aether Balance", 
+      value: user.points.toLocaleString(), 
+      sub: "PENDING AIRDROP" 
+    },
+    { 
+      icon: <Users className="w-6 h-6 text-cyan-400" />, 
+      label: "Squadron", 
+      value: user.inviteCount, 
+      sub: "ACTIVE RECRUITS" 
+    },
+    { 
+      icon: <ShieldCheck className="w-6 h-6 text-purple-400" />, 
+      label: "Clearance", 
+      value: user.hasPaidEarlyAccess ? "ALPHA COMMANDER" : "INITIATE", 
+      sub: "ACCESS LEVEL" 
+    },
   ];
 
   return (
     <div className="relative min-h-screen w-full text-white overflow-hidden pb-20">
       
-      {/* --- BACKGROUND AMBIENCE --- */}
+      {/* --- BACKGROUND AMBIENCE (Фонові ефекти) --- */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[120px]" />
         <div className="absolute bottom-[10%] left-[-10%] w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[100px]" />
+        {/* Текстура шуму для кінематографічності */}
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>
       </div>
 
@@ -51,48 +68,49 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
           className="space-y-8"
         >
           
-          {/* --- MAIN IDENTITY CARD --- */}
+          {/* --- MAIN IDENTITY CARD (Головна картка) --- */}
           <div className="relative group rounded-[2.5rem] bg-[#0A0A0E] border border-white/10 overflow-hidden shadow-2xl">
-            {/* Animated Header Background */}
+            {/* Анімований градієнт зверху */}
             <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-cyan-900/40 via-purple-900/40 to-indigo-900/40"></div>
             
             <div className="relative px-8 pb-10 pt-16 md:px-12 md:flex md:items-end gap-8">
               
-              {/* Avatar Section */}
+              {/* Аватар */}
               <div className="relative shrink-0">
                 <div className="w-36 h-36 rounded-3xl bg-[#050505] border-2 border-cyan-500/30 p-1 shadow-[0_0_40px_rgba(6,182,212,0.2)] flex items-center justify-center relative z-10">
                    <div className="w-full h-full rounded-2xl bg-gradient-to-br from-gray-800 to-black flex items-center justify-center overflow-hidden relative">
                       <UserIcon className="w-16 h-16 text-gray-400" />
-                      {/* Scanline Effect */}
+                      {/* Ефект сканування */}
                       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/10 to-transparent animate-scan" />
                    </div>
                 </div>
-                {/* Status Indicator */}
+                {/* Індикатор статусу */}
                 <div className="absolute -bottom-3 -right-3 px-3 py-1 bg-green-500 text-black text-[10px] font-black uppercase rounded-full border-2 border-[#0A0A0E] shadow-lg">
                   Online
                 </div>
               </div>
 
-              {/* User Info Section */}
+              {/* Інформація про користувача */}
               <div className="mt-6 md:mt-0 flex-grow">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
                     <h5 className="text-cyan-500 font-mono text-xs tracking-[0.2em] uppercase mb-2 flex items-center gap-2">
                         <ShieldCheck className="w-3 h-3" />
-                        Commander Identity
+                        Guardian Identity
                     </h5>
                     
+                    {/* Тільки ім'я, без редагування */}
                     <div className="flex items-center gap-4">
-                       <h1 className="text-4xl md:text-6xl font-cinzel font-black text-white tracking-wide drop-shadow-lg">
+                       <h1 className="text-4xl md:text-6xl font-cinzel font-black text-white tracking-wide drop-shadow-lg break-all">
                            {user.username}
                        </h1>
                     </div>
                   </div>
 
-                  {/* Wallet Address Chip */}
+                  {/* Кнопка копіювання гаманця */}
                   <button 
                     onClick={copyAddress}
-                    className="flex items-center gap-2 bg-black/40 hover:bg-black/60 border border-white/10 hover:border-cyan-500/50 px-5 py-3 rounded-full transition-all group/wallet"
+                    className="flex items-center gap-2 bg-black/40 hover:bg-black/60 border border-white/10 hover:border-cyan-500/50 px-5 py-3 rounded-full transition-all group/wallet cursor-pointer"
                   >
                     <Wallet className="w-4 h-4 text-gray-500 group-hover/wallet:text-cyan-400 transition-colors" />
                     <span className="font-mono text-xs text-gray-400 group-hover/wallet:text-white transition-colors">
@@ -109,7 +127,7 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
               </div>
             </div>
 
-            {/* --- STATS GRID --- */}
+            {/* --- STATS GRID (Статистика) --- */}
             <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-white/5 border-t border-white/5 bg-black/20">
               {statItems.map((item, i) => (
                 <div key={i} className="p-8 flex items-center gap-5 hover:bg-white/[0.02] transition-colors group">
@@ -125,8 +143,9 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
             </div>
           </div>
 
-          {/* --- SOCIAL SYNC SECTION --- */}
+          {/* --- SOCIAL SYNC SECTION (Соціальні мережі) --- */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+             
              {/* Twitter Card */}
              <div className="p-8 rounded-[2rem] bg-[#0A0A0E] border border-white/10 relative overflow-hidden group hover:border-white/20 transition-all">
                 <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
@@ -177,7 +196,7 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
                       )}
                    </div>
                    <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-                      Join the <span className="text-cyan-400 font-bold">Guardian Council</span> group to access real-time yield reports and raid alerts.
+                      Join the <span className="text-cyan-400 font-bold">Guardian Council</span> group to access real-time yield reports.
                    </p>
                    {!user.socialsFollowed.telegram && (
                       <button onClick={() => window.open(SOCIAL_LINKS.TELEGRAM, '_blank')} className="w-full py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 rounded-xl text-white text-xs font-bold uppercase tracking-widest transition-all shadow-lg shadow-cyan-900/20">
@@ -188,7 +207,7 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
              </div>
           </div>
 
-           {/* Security / Info Footer */}
+           {/* Footer: Security Info */}
            <div className="flex items-center justify-center gap-2 p-6 opacity-40 hover:opacity-100 transition-opacity">
              <AlertCircle className="w-4 h-4 text-gray-500" />
              <p className="text-[10px] text-gray-500 uppercase tracking-widest">
