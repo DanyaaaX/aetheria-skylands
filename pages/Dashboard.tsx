@@ -39,7 +39,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
   // --- LOGIC: COPY LINK ---
   const copyReferral = () => {
     if (user?.referralCode) {
-      const link = `https://t.me/AetheriaBot?start=${user.referralCode}`;
+      const link = `https://aetheria-skylands.vercel.app/?start=${user.referralCode}`;
       navigator.clipboard.writeText(link);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
