@@ -4,20 +4,20 @@ import {
   Trophy, Medal, User as UserIcon, Loader2, Sparkles, 
   AlertTriangle, RefreshCw, Crown, Globe, Users, Target, Shield 
 } from 'lucide-react';
-import { API_BASE_URL } from '../constants';
+import { API_BASE_URL } from '../constants'; // [cite: 3]
 
 interface LeaderboardEntry {
   username: string;
   points: number;
   inviteCount: number;
   rank: number;
-}
+} // [cite: 3, 4]
 
 const Leaderboard: React.FC = () => {
   const [players, setPlayers] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'global' | 'squad'>('global');
+  // [cite: 4, 5]
 
   const fetchLeaderboard = useCallback(async () => {
     try {
@@ -31,7 +31,7 @@ const Leaderboard: React.FC = () => {
           'Accept': 'application/json',
           'Cache-Control': 'no-cache'
         }
-      });
+      }); // [cite: 6, 7]
       
       if (!response.ok) throw new Error(`Registry status error: ${response.status}`);
 
@@ -43,7 +43,7 @@ const Leaderboard: React.FC = () => {
           username: p.username || "UNKNOWN_GUARDIAN",
           points: p.points || 0,
           inviteCount: p.inviteCount || 0
-        })));
+        }))); // [cite: 7, 8]
       } else {
         throw new Error("Registry returned invalid packet structure.");
       }
@@ -53,7 +53,7 @@ const Leaderboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, []); // [cite: 8, 9]
 
   useEffect(() => {
     fetchLeaderboard();
@@ -61,23 +61,23 @@ const Leaderboard: React.FC = () => {
 
   // Separate Top 3 from the rest
   const topThree = players.slice(0, 3);
-  const restOfList = players.slice(3);
+  const restOfList = players.slice(3); // [cite: 10]
 
   return (
     <div className="relative w-full min-h-screen bg-[#030305] text-white overflow-hidden pb-20 selection:bg-cyan-500/30">
       
-      {/* --- BACKGROUND DNA --- */}
+      {/* --- BACKGROUND DNA (CLEANED - No Rotating Arrow/Circle) --- */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#1a1a2e] via-[#050505] to-[#000000]" />
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 100, repeat: Infinity, ease: "linear" }} className="absolute -top-[50%] -right-[50%] w-[100%] h-[100%] border-[1px] border-white/5 rounded-full border-dashed opacity-20" />
-      </div>
+        {/* Removed the rotating motion.div here for cleaner look */} 
+      </div> 
+      {/*  */}
 
-      <div className="relative z-10 max-w-5xl mx-auto pt-10 px-4 sm:px-6">
+      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6">
         
-       {/* --- HEADER --- */}
-        {/* Додав pt-16, щоб опустити заголовок нижче */}
-        <div className="text-center mb-20 pt-16">
+        {/* --- HEADER (LOWERED) --- */}
+        <div className="text-center mb-16 pt-24"> 
            <motion.div 
              initial={{ opacity: 0, y: -20 }} 
              animate={{ opacity: 1, y: 0 }}
@@ -87,7 +87,8 @@ const Leaderboard: React.FC = () => {
               <span className="text-[10px] font-mono text-yellow-200 uppercase tracking-[0.25em] font-bold">
                 Season 1: Genesis
               </span>
-           </motion.div>
+           </motion.div> 
+           {/* [cite: 12, 13, 14] */}
 
            <h1 className="text-5xl md:text-8xl font-cinzel font-black mb-6 tracking-tighter text-white uppercase drop-shadow-2xl">
               Hall of <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-amber-600">Legends</span>
@@ -96,7 +97,8 @@ const Leaderboard: React.FC = () => {
            <p className="text-gray-400 max-w-xl mx-auto leading-relaxed font-light text-sm md:text-base tracking-wide">
               The elite pioneers of the Skylands. Rankings are synthesized from Aether production and tactical expansion.
            </p>
-        </div>
+        </div> 
+        {/* [cite: 14, 15, 16] */}
 
         {loading ? (
            <div className="min-h-[400px] flex flex-col items-center justify-center">
@@ -113,7 +115,9 @@ const Leaderboard: React.FC = () => {
               </button>
            </div>
         ) : (
-           <>
+           <> 
+              {/* [cite: 17, 18, 19] */}
+              
               {/* --- THE PODIUM (TOP 3) --- */}
               {players.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end mb-16 px-4">
@@ -130,7 +134,8 @@ const Leaderboard: React.FC = () => {
                        {topThree[2] && <PodiumCard player={topThree[2]} rank={3} />}
                     </div>
                 </div>
-              )}
+              )} 
+              {/* [cite: 20, 21, 22, 23] */}
 
               {/* --- THE LIST (RANK 4+) --- */}
               <div className="bg-[#0A0A0E]/60 backdrop-blur-xl border border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
@@ -140,7 +145,8 @@ const Leaderboard: React.FC = () => {
                      <div className="col-span-6 md:col-span-6">Guardian Identity</div>
                      <div className="col-span-2 md:col-span-2 text-center hidden md:block">Invites</div>
                      <div className="col-span-4 md:col-span-3 text-right">Aether Yield</div>
-                  </div>
+                  </div> 
+                  {/* [cite: 24, 25] */}
 
                   <div className="divide-y divide-white/5">
                       {restOfList.length > 0 ? (
@@ -155,12 +161,13 @@ const Leaderboard: React.FC = () => {
                   </div>
               </div>
            </>
-        )}
+        )} 
+        {/* [cite: 26, 27, 28] */}
 
       </div>
     </div>
   );
-};
+}; // [cite: 29]
 
 // --- SUB-COMPONENTS ---
 
@@ -171,8 +178,7 @@ const PodiumCard = ({ player, rank }: { player: LeaderboardEntry, rank: number }
       3: { color: "text-amber-600", border: "border-amber-600/50", bg: "bg-amber-600/10", shadow: "shadow-[0_0_30px_-10px_rgba(217,119,6,0.2)]", icon: <Shield className="w-6 h-6 text-amber-700" /> },
    };
    
-   // Fallback for types not strictly 1,2,3 (though logic prevents this)
-   const style = styles[rank as 1|2|3] || styles[2];
+   const style = styles[rank as 1|2|3] || styles[2]; // [cite: 30, 31]
 
    return (
       <motion.div 
@@ -184,7 +190,8 @@ const PodiumCard = ({ player, rank }: { player: LeaderboardEntry, rank: number }
          {/* Rank Badge */}
          <div className={`absolute -top-5 w-12 h-12 rounded-xl bg-[#0A0A0E] border border-white/10 flex items-center justify-center ${style.color} shadow-lg z-20`}>
              <span className="font-black font-cinzel text-xl">{rank}</span>
-         </div>
+         </div> 
+         {/* [cite: 32] */}
 
          {/* Avatar */}
          <div className="relative mt-4 mb-4">
@@ -195,7 +202,8 @@ const PodiumCard = ({ player, rank }: { player: LeaderboardEntry, rank: number }
              {/* Glow behind avatar */}
              <div className={`absolute inset-0 blur-2xl opacity-40 ${style.bg} rounded-full`}></div>
              {rank === 1 && <div className="absolute -top-6 left-1/2 -translate-x-1/2 animate-bounce">{style.icon}</div>}
-         </div>
+         </div> 
+         {/* [cite: 33, 34] */}
 
          <h3 className="text-white font-bold font-cinzel text-lg truncate w-full mb-1">{player.username}</h3>
          <p className="text-[10px] text-gray-400 font-mono uppercase tracking-widest mb-4">
@@ -207,7 +215,7 @@ const PodiumCard = ({ player, rank }: { player: LeaderboardEntry, rank: number }
          </div>
       </motion.div>
    )
-}
+} // [cite: 35]
 
 const ListRow = ({ player }: { player: LeaderboardEntry }) => {
    return (
@@ -220,7 +228,8 @@ const ListRow = ({ player }: { player: LeaderboardEntry }) => {
           {/* Rank */}
           <div className="col-span-2 md:col-span-1">
              <span className="font-cinzel font-bold text-gray-500 group-hover:text-white transition-colors">#{player.rank}</span>
-          </div>
+          </div> 
+          {/* [cite: 36, 37] */}
 
           {/* User */}
           <div className="col-span-6 md:col-span-6 flex items-center gap-3">
@@ -230,19 +239,22 @@ const ListRow = ({ player }: { player: LeaderboardEntry }) => {
               <span className="text-sm font-bold text-gray-300 group-hover:text-white truncate transition-colors">
                  {player.username}
               </span>
-          </div>
+          </div> 
+          {/* [cite: 38] */}
 
           {/* Invites */}
           <div className="col-span-2 md:col-span-2 text-center hidden md:block">
              <span className="text-xs font-mono text-gray-500">{player.inviteCount}</span>
-          </div>
+          </div> 
+          {/* [cite: 39] */}
 
           {/* Points */}
           <div className="col-span-4 md:col-span-3 text-right">
              <span className="text-sm font-mono font-bold text-cyan-500 group-hover:text-cyan-400 transition-colors drop-shadow-sm">
                 {player.points.toLocaleString()}
              </span>
-          </div>
+          </div> 
+          {/* [cite: 40] */}
       </motion.div>
    )
 }
