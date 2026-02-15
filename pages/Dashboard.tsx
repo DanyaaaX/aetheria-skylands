@@ -31,10 +31,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
   const [scanProgress, setScanProgress] = useState(0);
 
   // --- LOGIC: VIP STATS (Minted Referrals Only) ---
-  // ⚠️ УВАГА: Переконайтеся, що ваш об'єкт User містить поле mintedInviteCount (кількість рефералів з NFT)
-  // Якщо поля немає, буде 0.
+  // ЦІЛЬ ЗМІНЕНО НА 1
   const vipReferralsCount = (user as any).mintedInviteCount || 0; 
-  const VIP_TARGET = 5;
+  const VIP_TARGET = 1;
   const vipProgress = Math.min((vipReferralsCount / VIP_TARGET) * 100, 100);
 
   // --- LOGIC: COPY LINK ---
@@ -245,7 +244,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                         Gold Airdrop Whitelist
                     </h3>
                     <p className="text-[10px] text-gray-400 font-mono mb-6 leading-relaxed">
-                        Recruit 5 agents who successfully <span className="text-white font-bold">Mint the Artifact</span>.
+                        Recruit <span className="text-white font-bold">1 agent</span> who successfully <span className="text-white font-bold">Mints the Artifact</span>.
                         <br/><span className="text-amber-500/70 text-[9px] uppercase mt-1 block">Standard referrals do not count here.</span>
                     </p>
 
