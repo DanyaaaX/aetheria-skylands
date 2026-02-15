@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import { 
-  CheckCircle2, Lock, Zap, User as UserIcon, LogIn, 
+  CheckCircle2, Lock, Zap, LogIn, 
   RefreshCcw, Loader2, Twitter, Send, 
-  Box, Share2, Copy, Globe, Link as LinkIcon,
-  ScanLine, Radio, ShieldCheck, Terminal
+  Box, Share2, Copy, Globe, 
+  ScanLine, Crown, ShieldCheck, Gem
 } from 'lucide-react';
 import { User } from '../types';
 import { ADMIN_WALLET, INVITES_FOR_EA, SOCIAL_LINKS, API_BASE_URL } from '../constants';
@@ -39,17 +39,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
     }
   };
 
-  // --- LOGIC: SOCIAL QUESTS (Verification Protocols) ---
+  // --- LOGIC: SOCIAL QUESTS ---
   const handleSocialVerify = async (platform: 'twitter' | 'telegram') => {
-    // 1. Open Link immediately
     window.open(platform === 'twitter' ? SOCIAL_LINKS.TWITTER : SOCIAL_LINKS.TELEGRAM, '_blank');
     
-    // 2. Start Visual "Scanning" Process
     setVerifyingStep(platform);
     setScanProgress(0);
     setLocalError(null);
 
-    // Imitate scanning progress (User feedback loop)
     const interval = setInterval(() => {
         setScanProgress(prev => {
             if (prev >= 90) return prev;
@@ -58,12 +55,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
     }, 200);
 
     try {
-      // Artificial delay for "Verification" feel (3.5s total)
       await new Promise(r => setTimeout(r, 3500));
       clearInterval(interval);
       setScanProgress(100);
 
-      // 3. Backend Sync (Badge Update Only)
       const res = await fetch(`${API_BASE_URL}/api/auth/update-socials`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -71,11 +66,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
       });
       const data = await res.json();
       
-      if (data.success) {
-          setUser(data.user);
-      } else {
-          setLocalError("Signature verification failed.");
-      }
+      if (data.success) setUser(data.user);
+      else setLocalError("Signature verification failed.");
     } catch (e) {
       setLocalError("Network synchronization failed.");
     } finally {
@@ -149,10 +141,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                 <LogIn className="w-10 h-10 text-gray-400" />
             </div>
             <h2 className="text-3xl font-cinzel font-bold text-white mb-2 tracking-widest">SYSTEM LOCKED</h2>
-            <p className="text-gray-500 font-mono text-xs uppercase tracking-[0.2em] mb-8">Authentication Required</p>
-            <button onClick={() => tonConnectUI.openModal()} className="group relative px-8 py-4 bg-white text-black font-bold rounded-xl uppercase tracking-widest text-xs overflow-hidden transition-all hover:scale-105">
-                <span className="relative z-10">Connect Wallet</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-gray-200 to-white opacity-0 group-hover:opacity-100 transition-opacity" />
+            <button onClick={() => tonConnectUI.openModal()} className="mt-8 px-8 py-4 bg-white text-black font-bold rounded-xl uppercase tracking-widest text-xs hover:scale-105 transition-transform">
+                Connect Wallet
             </button>
         </motion.div>
       </div>
@@ -162,60 +152,38 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
   if (!user) {
     return (
       <div className="min-h-screen bg-[#030305] flex flex-col items-center justify-center text-cyan-400">
-        <div className="relative">
-            <div className="absolute inset-0 blur-lg bg-cyan-500/20"></div>
-            <Loader2 className="w-10 h-10 animate-spin relative z-10" />
-        </div>
-        <p className="font-mono text-[10px] uppercase tracking-[0.3em] mt-6 text-cyan-500/80">Initializing Registry...</p>
+        <Loader2 className="w-10 h-10 animate-spin" />
       </div>
     );
   }
 
-  const inviteProgress = Math.min((user.inviteCount / INVITES_FOR_EA) * 100, 100);
+  // New Goal: 5 Invites for WL/Gold
+  const WL_TARGET = 5;
+  const wlProgress = Math.min((user.inviteCount / WL_TARGET) * 100, 100);
 
   return (
     <div className="relative w-full min-h-screen bg-[#030305] text-white overflow-hidden pb-20 selection:bg-cyan-500/30">
       
-      {/* --- BACKGROUND GRID --- */}
+      {/* --- BACKGROUND --- */}
       <div className="fixed inset-0 z-0 pointer-events-none">
          <div className="absolute inset-0 bg-[#030305]" />
          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-cyan-500/5 blur-[120px] rounded-full pointer-events-none" />
       </div>
 
-      <div className="relative z-10 max-w-[1400px] mx-auto pt-8 px-6 lg:px-12">
+      <div className="relative z-10 max-w-[1400px] mx-auto pt-12 px-6 lg:px-12">
         
-        {/* HEADER */}
-        <motion.div 
-            initial={{ y: -20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="flex items-center justify-between mb-12 border-b border-white/5 pb-6"
-        >
-            <div className="flex items-center gap-4">
-                <div className="p-2 bg-cyan-900/20 border border-cyan-500/30 rounded-lg">
-                    <Terminal className="w-5 h-5 text-cyan-400" />
-                </div>
-                <div>
-                    <h1 className="text-xl font-cinzel font-bold tracking-widest text-white uppercase">Command Center</h1>
-                    <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">Unit: {user.walletAddress.slice(0, 4)}...{user.walletAddress.slice(-4)}</p>
-                </div>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#0E0E10] border border-white/10">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">System Online</span>
-            </div>
-        </motion.div>
+        {/* REMOVED HEADER PER REQUEST */}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* --- LEFT COLUMN (STATS & REFERRALS) --- */}
+          {/* --- LEFT COLUMN --- */}
           <div className="lg:col-span-4 space-y-6">
             
-            {/* 1. REGISTRY EXPANSION CARD */}
+            {/* 1. REGISTRY EXPANSION */}
             <motion.div 
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.1 }}
                 className="p-1 rounded-[2rem] bg-gradient-to-br from-white/10 to-transparent relative group"
             >
                 <div className="absolute inset-0 bg-cyan-500/5 blur-xl group-hover:bg-cyan-500/10 transition-colors duration-500 rounded-[2rem]" />
@@ -254,42 +222,53 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                 </div>
             </motion.div>
 
-            {/* 2. PROGRESS CARD */}
+            {/* 2. VIP / GOLD AIRDROP STATUS (NEW DESIGN) */}
             <motion.div 
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ delay: 0.2 }}
-                className="p-8 rounded-[2rem] bg-[#0A0A0C] border border-white/5 relative overflow-hidden"
+                className="p-1 rounded-[2rem] bg-gradient-to-br from-amber-500/20 via-transparent to-transparent relative group"
             >
-                <div className="flex items-center gap-2 mb-8">
-                    <Radio className="w-4 h-4 text-purple-500" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Signal Strength</span>
-                </div>
-
-                <div className="relative h-4 bg-[#151518] rounded-full overflow-hidden border border-white/5 mb-2">
-                    <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${inviteProgress}%` }}
-                        transition={{ duration: 1.5, ease: "circOut" }}
-                        className="h-full bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 relative"
-                    >
-                         <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.3)_50%,transparent_75%)] bg-[size:10px_10px]" />
-                    </motion.div>
-                </div>
+                <div className="absolute inset-0 bg-amber-500/5 blur-xl group-hover:bg-amber-500/10 transition-colors duration-500 rounded-[2rem]" />
                 
-                <div className="flex justify-between items-center text-[10px] uppercase font-mono tracking-wider">
-                    <span className="text-gray-600">Phase 1 Clearance</span>
-                    <span className={inviteProgress >= 100 ? "text-green-500 font-bold" : "text-white"}>
-                        {user.inviteCount}/{INVITES_FOR_EA}
-                    </span>
+                <div className="bg-[#0A0A0C] p-8 rounded-[1.9rem] border border-amber-500/20 h-full relative overflow-hidden">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Crown className="w-5 h-5 text-amber-500 fill-amber-500/20" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500">VIP Protocol</span>
+                    </div>
+
+                    <h3 className="text-lg font-cinzel font-bold text-white mb-2 leading-tight">
+                        Whitelist & Gold Airdrop
+                    </h3>
+                    <p className="text-[10px] text-gray-400 font-mono mb-6 leading-relaxed">
+                        Invite <span className="text-white font-bold">5 recruits</span> who secure an NFT to be recorded in the <span className="text-amber-400">Golden Ledger</span>.
+                    </p>
+
+                    <div className="relative h-3 bg-[#151518] rounded-full overflow-hidden border border-white/5 mb-2">
+                        <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${wlProgress}%` }}
+                            transition={{ duration: 1.5, ease: "circOut" }}
+                            className="h-full bg-gradient-to-r from-amber-600 to-yellow-400 relative"
+                        >
+                            <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.4)_50%,transparent_75%)] bg-[size:10px_10px]" />
+                        </motion.div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-[9px] uppercase font-mono tracking-wider">
+                        <span className="text-gray-600">Qualification Status</span>
+                        <span className={user.inviteCount >= WL_TARGET ? "text-amber-400 font-bold" : "text-gray-500"}>
+                            {user.inviteCount}/{WL_TARGET} Verified
+                        </span>
+                    </div>
                 </div>
             </motion.div>
           </div>
 
-          {/* --- RIGHT COLUMN (STAGES) --- */}
+          {/* --- RIGHT COLUMN --- */}
           <div className="lg:col-span-8 space-y-4">
             
-            {/* STAGE 1: REGISTRY (Compact) */}
+            {/* STAGE 1 */}
             <motion.div 
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
@@ -305,7 +284,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                 </div>
             </motion.div>
 
-            {/* STAGE 2: ACCESS PASS (Interactive) */}
+            {/* STAGE 2: ACCESS PASS */}
             <motion.div 
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
@@ -314,7 +293,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
             >
                 <div className="p-8 rounded-[2.3rem] bg-[#0A0A0C] border border-white/5 relative overflow-hidden">
                     <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
-                        {/* Icon/Status */}
                         <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 border transition-all duration-500 ${user.hasPaidEarlyAccess ? 'bg-green-900/10 border-green-500/30 text-green-500' : 'bg-yellow-900/10 border-yellow-500/30 text-yellow-500'}`}>
                             {user.hasPaidEarlyAccess ? <CheckCircle2 className="w-8 h-8" /> : <Lock className="w-8 h-8" />}
                         </div>
@@ -331,7 +309,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                                 </p>
                             )}
                             
-                            {/* Action Area */}
                             {!user.hasPaidEarlyAccess && (
                                 <div className="mt-6">
                                     {user.inviteCount >= INVITES_FOR_EA ? (
@@ -354,7 +331,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                                     ) : (
                                         <div className="inline-flex items-center gap-3 px-4 py-2 rounded-lg bg-red-500/5 border border-red-500/10">
                                             <Lock className="w-3 h-3 text-red-500" />
-                                            <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Protocol Locked: Await Recruits</span>
+                                            <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Locked: Await Recruits</span>
                                         </div>
                                     )}
                                 </div>
@@ -364,19 +341,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                 </div>
             </motion.div>
 
-            {/* STAGE 3: LEGENDARY MINT (The Quest Hub) */}
+            {/* STAGE 3: LEGENDARY MINT */}
             <motion.div 
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.5 }}
                 className="relative group"
             >
-                {/* Background Glow */}
                 <div className={`absolute -inset-1 rounded-[2.5rem] blur-xl opacity-20 transition-all duration-1000 ${user.hasPaidEarlyAccess ? 'bg-gradient-to-r from-purple-600 to-blue-600' : 'bg-transparent'}`} />
 
                 <div className={`relative p-8 rounded-[2.5rem] bg-[#08080A] border ${user.hasPaidEarlyAccess ? 'border-purple-500/30' : 'border-white/5'} overflow-hidden`}>
                     
-                    {/* Locked Overlay if previous step not done */}
                     {!user.hasPaidEarlyAccess && (
                         <div className="absolute inset-0 z-20 bg-[#030305]/60 backdrop-blur-[2px] flex items-center justify-center">
                             <div className="px-6 py-3 rounded-full bg-black border border-white/10 flex items-center gap-3">
@@ -391,10 +366,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                         <div className="flex items-center justify-between border-b border-white/5 pb-6">
                             <div>
                                 <h3 className="text-2xl font-cinzel font-bold text-white uppercase tracking-widest flex items-center gap-3">
-                                    <Box className="w-6 h-6 text-purple-500" /> Genesis Artifact
+                                    <Gem className="w-6 h-6 text-purple-500" /> Genesis Artifact
                                 </h3>
+                                {/* SUPPLY UPDATED HERE */}
                                 <p className="text-[10px] text-purple-400/60 font-mono uppercase tracking-widest mt-1">
-                                    Class: Legendary // Supply: Limited
+                                    Supply: 8888
                                 </p>
                             </div>
                             {user.hasMintedNFT && (
@@ -406,8 +382,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
 
                         {/* QUESTS GRID */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            
-                            {/* QUEST 1: TWITTER */}
                             <button
                                 onClick={() => !user.socialsFollowed.twitter && handleSocialVerify('twitter')}
                                 disabled={user.socialsFollowed.twitter || verifyingStep !== null}
@@ -427,8 +401,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                                         <div className="text-[9px] font-mono text-gray-600">Establish Comm Link</div>
                                     </div>
                                 </div>
-
-                                {/* Status Indicator */}
                                 <div className="relative z-10">
                                     {verifyingStep === 'twitter' ? (
                                         <div className="flex flex-col items-end">
@@ -441,18 +413,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                                         <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                                     )}
                                 </div>
-
-                                {/* Progress Bar Overlay for Scanning */}
                                 {verifyingStep === 'twitter' && (
-                                    <motion.div 
-                                        className="absolute inset-0 bg-cyan-500/10 z-0" 
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${scanProgress}%` }}
-                                    />
+                                    <motion.div className="absolute inset-0 bg-cyan-500/10 z-0" initial={{ width: 0 }} animate={{ width: `${scanProgress}%` }} />
                                 )}
                             </button>
 
-                            {/* QUEST 2: TELEGRAM */}
                             <button
                                 onClick={() => !user.socialsFollowed.telegram && handleSocialVerify('telegram')}
                                 disabled={user.socialsFollowed.telegram || verifyingStep !== null}
@@ -472,7 +437,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                                         <div className="text-[9px] font-mono text-gray-600">Join Squadron</div>
                                     </div>
                                 </div>
-
                                 <div className="relative z-10">
                                     {verifyingStep === 'telegram' ? (
                                         <div className="flex flex-col items-end">
@@ -485,13 +449,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                                         <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                                     )}
                                 </div>
-
                                 {verifyingStep === 'telegram' && (
-                                    <motion.div 
-                                        className="absolute inset-0 bg-cyan-500/10 z-0" 
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${scanProgress}%` }}
-                                    />
+                                    <motion.div className="absolute inset-0 bg-cyan-500/10 z-0" initial={{ width: 0 }} animate={{ width: `${scanProgress}%` }} />
                                 )}
                             </button>
                         </div>
@@ -508,7 +467,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                                         : 'bg-[#15151A] text-gray-600 border border-white/5 cursor-not-allowed'
                                 }`}
                             >
-                                {/* Animated Shine for active button */}
                                 {(!user.hasMintedNFT && user.socialsFollowed.twitter && user.socialsFollowed.telegram) && (
                                     <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-40 group-hover:animate-shine" />
                                 )}
@@ -526,7 +484,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                             </button>
                             {localError && <p className="text-center text-[10px] text-red-500 uppercase tracking-widest mt-4 animate-pulse">{localError}</p>}
                         </div>
-
                     </div>
                 </div>
             </motion.div>
