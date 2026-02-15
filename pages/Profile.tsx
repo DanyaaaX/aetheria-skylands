@@ -3,10 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User as UserIcon, Wallet, Coins, Users, 
   CheckCircle2, Twitter, Send, Copy, ShieldCheck, 
-  Lock, Medal, Scroll, Gem, Star, Flame, Trophy, AlertTriangle, X, Save 
+  Lock, Medal, Scroll, Gem, Star, Flame, Trophy, AlertTriangle, X, Save, Loader2 
 } from 'lucide-react';
 import { User } from '../types';
-import { SOCIAL_LINKS } from '../constants';
+import { SOCIAL_LINKS, API_BASE_URL } from '../constants'; // Переконайся, що API_BASE_URL тут є
 
 // --- TYPES EXTENSION ---
 interface ExtendedUser extends User {
@@ -25,10 +25,12 @@ interface ProfileProps {
 const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
   const [copied, setCopied] = useState(false);
   
-  // Стан для модального вікна вводу соцмереж
+  // Стан для модального вікна та завантаження
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activePlatform, setActivePlatform] = useState<'twitter' | 'telegram' | null>(null);
   const [inputHandle, setInputHandle] = useState('');
+  const [isSaving, setIsSaving] = useState(false); // Стан збереження в БД
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const user = initialUser as ExtendedUser;
   
@@ -37,24 +39,15 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
   const hasNft = user.hasNft || false; 
   const mysteryProgress = 45;
 
-  // --- ГЕНЕРАЦІЯ УНІКАЛЬНОГО UID (6 СИМВОЛІВ, ЦИФРИ + ВЕЛИКІ БУКВИ) ---
+  // --- ГЕНЕРАЦІЯ УНІКАЛЬНОГО UID ---
   const uniqueUID = useMemo(() => {
     if (!user?.walletAddress) return "849201";
-    
-    // 1. Хешуємо адресу гаманця в число
     let hash = 0;
     for (let i = 0; i < user.walletAddress.length; i++) {
       hash = user.walletAddress.charCodeAt(i) + ((hash << 5) - hash);
     }
-    
-    // 2. Переводимо в систему числення 36 (0-9 + A-Z) і робимо UpperCase
     const base36 = Math.abs(hash).toString(36).toUpperCase();
-    
-    // 3. Беремо останні 6 символів (вони найбільш унікальні) і гарантуємо довжину
-    // Якщо хеш короткий, додаємо 'X' в кінець
-    const finalCode = (base36 + "X9Y5Z").slice(0, 6);
-    
-    return finalCode;
+    return (base36 + "X9Y5Z").slice(0, 6);
   }, [user?.walletAddress]);
 
   if (!user) return null;
@@ -71,24 +64,62 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
   const openSocialModal = (platform: 'twitter' | 'telegram') => {
     setActivePlatform(platform);
     setInputHandle(''); 
+    setErrorMsg(null);
     setIsModalOpen(true);
   };
 
-  const handleSaveSocial = () => {
+  // 🔥 ГОЛОВНА ФУНКЦІЯ ЗБЕРЕЖЕННЯ В БАЗУ 🔥
+  const handleSaveSocial = async () => {
     if (!activePlatform || !inputHandle) return;
-
-    const updatedUser = { ...user };
     
-    if (activePlatform === 'twitter') {
-        updatedUser.twitterHandle = inputHandle.startsWith('@') ? inputHandle : `@${inputHandle}`;
-        updatedUser.socialsFollowed = { ...user.socialsFollowed, twitter: true };
-    } else {
-        updatedUser.telegramHandle = inputHandle.startsWith('@') ? inputHandle : `@${inputHandle}`;
-        updatedUser.socialsFollowed = { ...user.socialsFollowed, telegram: true };
-    }
+    setIsSaving(true);
+    setErrorMsg(null);
 
-    setUser(updatedUser);
-    setIsModalOpen(false);
+    // 1. Форматуємо нікнейм (додаємо @)
+    const formattedHandle = inputHandle.trim().startsWith('@') 
+        ? inputHandle.trim() 
+        : `@${inputHandle.trim()}`;
+
+    try {
+        // 2. ВІДПРАВЛЯЄМО НА СЕРВЕР (БАЗУ ДАНИХ)
+        const response = await fetch(`${API_BASE_URL}/api/bind-social`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                walletAddress: user.walletAddress,
+                platform: activePlatform, // 'twitter' або 'telegram'
+                username: formattedHandle
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            // 3. ЯКЩО СЕРВЕР ПІДТВЕРДИВ - ОНОВЛЮЄМО ІНТЕРФЕЙС
+            const updatedUser = { ...user };
+            
+            if (activePlatform === 'twitter') {
+                updatedUser.twitterHandle = formattedHandle;
+                updatedUser.socialsFollowed = { ...user.socialsFollowed, twitter: true };
+            } else {
+                updatedUser.telegramHandle = formattedHandle;
+                updatedUser.socialsFollowed = { ...user.socialsFollowed, telegram: true };
+            }
+
+            setUser(updatedUser);
+            setIsModalOpen(false); // Закриваємо вікно
+        } else {
+            setErrorMsg(data.message || "Failed to save to database.");
+        }
+
+    } catch (error) {
+        console.error("Database Error:", error);
+        setErrorMsg("Connection error. Try again.");
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   const badges = [
@@ -181,7 +212,7 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
                 {/* User Details */}
                 <div className="text-center sm:text-left flex-1 min-w-0">
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-3">
-                    {/* UID SECTION - UNIQUE GENERATED 6-CHAR CODE */}
+                    {/* UID SECTION */}
                     <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-[10px] font-mono text-cyan-200 uppercase tracking-widest">
                       UID: {uniqueUID}
                     </span>
@@ -196,7 +227,7 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
                     {user.username}
                   </h1>
 
-                  {/* Wallet Action - REAL ADDRESS */}
+                  {/* Wallet Action */}
                   <button 
                     onClick={copyAddress}
                     className="relative overflow-hidden inline-flex items-center gap-3 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-500/50 rounded-xl transition-all w-full sm:w-auto justify-center sm:justify-start group/wallet"
@@ -222,7 +253,7 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
                 <div>
                     <h4 className="text-sm font-bold text-red-400 uppercase tracking-wider mb-1">Access Protocol Warning</h4>
                     <p className="text-[11px] text-gray-400 leading-relaxed">
-                        Once you link your Telegram account and Wallet to acquire the Whitelist, your access to the Aetheria ecosystem will be permanently bound to this Telegram account. <span className="text-gray-200 font-bold">You will only be able to login via this Telegram account in the future.</span> Ensure you are using your primary secure account.
+                        By linking your Telegram, you are creating a permanent binding. <span className="text-gray-200 font-bold">Your Whitelist & NFT access will be tied strictly to this Telegram handle.</span> Ensure this is your primary account.
                     </p>
                 </div>
             </div>
@@ -243,7 +274,7 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
               </div>
             </div>
 
-            {/* 4. COMMUNICATION MODULES (UPDATED WITH INPUT) */}
+            {/* 4. COMMUNICATION MODULES (BINDING) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                <SocialModule 
                   icon={<Twitter className="w-5 h-5" />}
@@ -338,7 +369,7 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
 
         </motion.div>
 
-        {/* --- MODAL FOR SOCIAL INPUT --- */}
+        {/* --- MODAL FOR SOCIAL INPUT (DB BINDING) --- */}
         <AnimatePresence>
             {isModalOpen && (
                 <motion.div 
@@ -361,9 +392,9 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
                             <div className={`p-4 rounded-full mb-4 ${activePlatform === 'twitter' ? 'bg-blue-500/10 text-blue-400' : 'bg-cyan-500/10 text-cyan-400'}`}>
                                 {activePlatform === 'twitter' ? <Twitter className="w-8 h-8" /> : <Send className="w-8 h-8" />}
                             </div>
-                            <h3 className="text-xl font-cinzel font-bold text-white">Link {activePlatform === 'twitter' ? 'Twitter (X)' : 'Telegram'}</h3>
+                            <h3 className="text-xl font-cinzel font-bold text-white">Bind {activePlatform === 'twitter' ? 'Twitter' : 'Telegram'}</h3>
                             <p className="text-xs text-gray-400 mt-2">
-                                Please enter your username (e.g. @username) to verify your identity.
+                                Enter your username to permanently bind it to this Skylands account.
                             </p>
                         </div>
 
@@ -377,11 +408,18 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
                                     className="w-full bg-[#050505] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 transition-colors font-mono text-sm"
                                 />
                             </div>
+                            
+                            {errorMsg && (
+                                <p className="text-red-400 text-xs text-center">{errorMsg}</p>
+                            )}
+
                             <button 
                                 onClick={handleSaveSocial}
-                                className="w-full py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 uppercase tracking-widest text-xs"
+                                disabled={isSaving}
+                                className="w-full py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 uppercase tracking-widest text-xs disabled:opacity-50"
                             >
-                                <Save className="w-4 h-4" /> Save & Verify
+                                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                {isSaving ? "Binding..." : "Confirm Binding"}
                             </button>
                         </div>
                     </motion.div>
@@ -453,7 +491,7 @@ const SocialModule = ({ icon, title, platform, isConnected, handle, color, onCon
             <div>
                <p className="text-white font-bold text-sm leading-none mb-1">{title}</p>
                <p className={`text-[10px] uppercase font-bold tracking-wider ${isConnected ? 'text-green-500' : 'text-gray-500'}`}>
-                  {isConnected ? (handle || 'Linked') : 'Not Linked'}
+                  {isConnected ? (handle || 'Bound') : 'Not Bound'}
                </p>
             </div>
          </div>
@@ -463,7 +501,7 @@ const SocialModule = ({ icon, title, platform, isConnected, handle, color, onCon
                onClick={onConnect} 
                className="px-4 py-1.5 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-lg text-[10px] font-bold text-white uppercase tracking-widest transition-all"
             >
-               Connect
+               Bind
             </button>
          ) : (
             <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
