@@ -6,7 +6,7 @@ import {
   RefreshCcw, Loader2, Twitter, Send, 
   Share2, Copy, Globe, 
   ScanLine, Crown, ShieldCheck, Gem,
-  Image as ImageIcon, ArrowDown
+  Image as ImageIcon, Sparkles
 } from 'lucide-react';
 import { User } from '../types';
 import { ADMIN_WALLET, INVITES_FOR_EA, SOCIAL_LINKS, API_BASE_URL } from '../constants';
@@ -29,6 +29,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
   // State for visual "Quest" tracking
   const [verifyingStep, setVerifyingStep] = useState<'twitter' | 'telegram' | null>(null);
   const [scanProgress, setScanProgress] = useState(0);
+
+  // --- LOGIC: VIP STATS (Minted Referrals Only) ---
+  // ⚠️ УВАГА: Переконайтеся, що ваш об'єкт User містить поле mintedInviteCount (кількість рефералів з NFT)
+  // Якщо поля немає, буде 0.
+  const vipReferralsCount = (user as any).mintedInviteCount || 0; 
+  const VIP_TARGET = 5;
+  const vipProgress = Math.min((vipReferralsCount / VIP_TARGET) * 100, 100);
 
   // --- LOGIC: COPY LINK ---
   const copyReferral = () => {
@@ -159,8 +166,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
   }
 
   // LOGIC HELPERS
-  const WL_TARGET = 5;
-  const wlProgress = Math.min((user.inviteCount / WL_TARGET) * 100, 100);
   const isSocialsComplete = user.socialsFollowed.twitter && user.socialsFollowed.telegram;
 
   return (
@@ -180,7 +185,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
           {/* --- LEFT COLUMN --- */}
           <div className="lg:col-span-4 space-y-6">
             
-            {/* 1. REGISTRY EXPANSION */}
+            {/* 1. REGISTRY EXPANSION (ALL INVITES) */}
             <motion.div 
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
@@ -222,7 +227,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                 </div>
             </motion.div>
 
-            {/* 2. VIP / GOLD AIRDROP STATUS */}
+            {/* 2. VIP / GOLD AIRDROP STATUS (MINTED ONLY) */}
             <motion.div 
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
@@ -237,16 +242,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                     </div>
 
                     <h3 className="text-lg font-cinzel font-bold text-white mb-2 leading-tight">
-                        Whitelist & Gold Airdrop
+                        Gold Airdrop Whitelist
                     </h3>
                     <p className="text-[10px] text-gray-400 font-mono mb-6 leading-relaxed">
-                        Invite <span className="text-white font-bold">5 recruits</span> who secure an NFT to be recorded in the <span className="text-amber-400">Golden Ledger</span>.
+                        Recruit 5 agents who successfully <span className="text-white font-bold">Mint the Artifact</span>.
+                        <br/><span className="text-amber-500/70 text-[9px] uppercase mt-1 block">Standard referrals do not count here.</span>
                     </p>
 
+                    {/* Progress Bar for Minted Referrals */}
                     <div className="relative h-3 bg-[#151518] rounded-full overflow-hidden border border-white/5 mb-2">
                         <motion.div 
                             initial={{ width: 0 }}
-                            animate={{ width: `${wlProgress}%` }}
+                            animate={{ width: `${vipProgress}%` }}
                             transition={{ duration: 1.5, ease: "circOut" }}
                             className="h-full bg-gradient-to-r from-amber-600 to-yellow-400 relative"
                         >
@@ -255,9 +262,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                     </div>
                     
                     <div className="flex justify-between items-center text-[9px] uppercase font-mono tracking-wider">
-                        <span className="text-gray-600">Qualification Status</span>
-                        <span className={user.inviteCount >= WL_TARGET ? "text-amber-400 font-bold" : "text-gray-500"}>
-                            {user.inviteCount}/{WL_TARGET} Verified
+                        <span className="text-gray-600">Artifact Holders Recruited</span>
+                        <span className={vipReferralsCount >= VIP_TARGET ? "text-amber-400 font-bold" : "text-gray-500"}>
+                            {vipReferralsCount}/{VIP_TARGET} Qualified
                         </span>
                     </div>
                 </div>
@@ -351,7 +358,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                     </div>
                 )}
 
-                {/* --- QUEST 3: SOCIAL PROTOCOLS --- */}
+                {/* --- QUEST 3: SOCIAL PROTOCOLS (COMBINED) --- */}
                 <motion.div 
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
@@ -427,7 +434,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                     </div>
                 </motion.div>
 
-                {/* CONNECTOR LINE */}
+                {/* CONNECTOR LINE (Visual Flow) */}
                 <div className="flex justify-center -my-2 relative z-0">
                     <div className={`h-8 w-px border-l border-dashed ${isSocialsComplete ? 'border-green-500/50' : 'border-gray-700'}`}></div>
                 </div>
@@ -465,16 +472,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
 
                             <div className="flex flex-col md:flex-row gap-8 items-center">
                                 
-                                {/* NFT PLACEHOLDER IMAGE */}
+                                {/* NFT PLACEHOLDER IMAGE (INSERT YOUR IMG HERE) */}
                                 <div className="w-full md:w-48 aspect-square rounded-2xl bg-black/50 border border-white/10 flex flex-col items-center justify-center relative overflow-hidden group/img shrink-0 shadow-2xl">
-                                    {/* Animated Scanline */}
+                                    {/* Animated Scanline Effect */}
                                     {isSocialsComplete && <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-500/10 to-transparent animate-scan pointer-events-none" />}
                                     
-                                    {/* Place your IMG tag here later */}
-                                    <div className={`transition-all duration-500 ${isSocialsComplete ? 'scale-100 opacity-100' : 'scale-90 opacity-30 grayscale'}`}>
-                                        <ImageIcon className="w-12 h-12 text-gray-600 mb-3 mx-auto" />
+                                    {/* Placeholder Content - Replace with <img src="..." /> later */}
+                                    <div className={`transition-all duration-500 flex flex-col items-center ${isSocialsComplete ? 'scale-100 opacity-100' : 'scale-90 opacity-30 grayscale'}`}>
+                                        <div className="relative">
+                                            <ImageIcon className="w-12 h-12 text-gray-600 mb-3 mx-auto" />
+                                            {isSocialsComplete && <Sparkles className="w-4 h-4 text-purple-400 absolute -top-1 -right-1 animate-pulse" />}
+                                        </div>
                                         <span className="text-[9px] uppercase tracking-widest text-gray-700 font-mono">
-                                            {isSocialsComplete ? "Decrypted" : "Encrypted"}
+                                            {isSocialsComplete ? "Ready for Mint" : "Encrypted"}
                                         </span>
                                     </div>
                                 </div>
