@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const { v4: uuidv4 } = require('uuid');
+import mongoose from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
 
 const UserSchema = new mongoose.Schema({
   // ==========================================
@@ -27,42 +27,37 @@ const UserSchema = new mongoose.Schema({
   publicKey: { type: String, required: false },
 
   // ==========================================
-  // 🛡 SECURITY (Безпека)
+  // 🛡 SECURITY
   // ==========================================
-  // ✅ Зберігаємо nonce, щоб підписувати транзакції
   nonce: { type: String, required: true, default: () => uuidv4() },
 
   // ==========================================
-  // 🤝 REFERRAL SYSTEM (Рефералка)
+  // 🤝 REFERRAL SYSTEM
   // ==========================================
-  // ✅ sparse: true тут теж корисний, про всяк випадок, якщо код колись буде null
-  referralCode: { type: String, unique: true, lowercase: true, sparse: true }, 
+  referralCode: { type: String, unique: true, lowercase: true, sparse: true },
   referredBy: { type: String, default: null, index: true },
-  
-  // ✅ index: true (для сортування лідерборду)
   inviteCount: { type: Number, default: 0, index: true }, 
 
   // ==========================================
-  // 💰 ECONOMY & PROGRESS (Економіка)
+  // 💰 ECONOMY
   // ==========================================
-  points: { type: Number, default: 0, index: true }, // ✅ Індекс для топу гравців
+  points: { type: Number, default: 0, index: true },
   dailyStreak: { type: Number, default: 0 },
   lastLoginDate: { type: Date, default: null },
 
   // ==========================================
-  // 💎 VIP SYSTEM (VIP Система)
+  // 💎 VIP SYSTEM
   // ==========================================
   nftReferralsCount: { type: Number, default: 0 },
   isVip: { type: Boolean, default: false },
 
   // ==========================================
-  // 🌐 SOCIALS & INTEGRATIONS (Соцмережі)
+  // 🌐 SOCIALS
   // ==========================================
   telegramHandle: { type: String, default: null, trim: true },
   twitterHandle: { type: String, default: null, trim: true },
   
-  // 🔥🔥🔥 ГОЛОВНЕ ВИПРАВЛЕННЯ 🔥🔥🔥
-  // sparse: true дозволяє мати багато користувачів з telegramId: null
+  // sparse: true дозволяє багато null значень
   telegramId: { type: String, default: null, unique: true, sparse: true },
 
   socialsFollowed: {
@@ -71,7 +66,7 @@ const UserSchema = new mongoose.Schema({
   },
 
   // ==========================================
-  // 🏆 STATUSES (Статуси)
+  // 🏆 STATUSES
   // ==========================================
   hasPaidEarlyAccess: { type: Boolean, default: false },
   hasMintedNFT: { type: Boolean, default: false },
@@ -79,17 +74,15 @@ const UserSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 /**
- * 🔥 AUTOMATION HOOKS 🔥
+ * 🔥 AUTOMATION HOOKS
  */
 UserSchema.pre('save', function(next) {
-  // 1. Генерація реферального коду
   if (this.isModified('username') || this.isNew) {
     if (this.username) {
        this.referralCode = this.username.toLowerCase();
     }
   }
 
-  // 2. Гарантія нижнього регістру для гаманця
   if (this.isModified('walletAddress') && this.walletAddress) {
     this.walletAddress = this.walletAddress.toLowerCase();
   }
@@ -97,5 +90,5 @@ UserSchema.pre('save', function(next) {
   next();
 });
 
-// Експортуємо модель
-module.exports = mongoose.models.User || mongoose.model('User', UserSchema);
+// Експорт для ES Modules
+export default mongoose.models.User || mongoose.model('User', UserSchema);

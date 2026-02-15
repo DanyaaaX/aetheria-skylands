@@ -1,16 +1,18 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const compression = require('compression');
-const morgan = require('morgan');
-const { v4: uuidv4 } = require('uuid');
-const nacl = require('tweetnacl');
+import dotenv from 'dotenv';
+dotenv.config(); // Ініціалізація .env
 
-// 👇 Імпортуємо нашу нову логіку БД
-const connectDB = require('../lib/db'); 
-const User = require('./models/User');
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import compression from 'compression';
+import morgan from 'morgan';
+import { v4 as uuidv4 } from 'uuid';
+import nacl from 'tweetnacl'; // Переконайтесь, що встановлено: npm install tweetnacl
+
+// Імпорти наших файлів (обов'язково з .js)
+import connectDB from '../lib/db.js'; 
+import User from './models/User.js';
 
 const app = express();
 
@@ -312,13 +314,20 @@ authRouter.post('/mint', async (req, res) => {
 // --- MOUNT ROUTERS ---
 app.use('/api/auth', authRouter);
 
-// Підключаємо інші роути, якщо вони існують у папці routes
-// Якщо їх немає - ці рядки треба закоментувати, щоб сервер не впав
+// Спроба динамічного імпорту для інших роутів (Leaderboard, Payment)
+// Якщо файлів немає, сервер не впаде
 try {
-  app.use('/api/leaderboard', require('./routes/leaderboard'));
-  app.use('/api/payment', require('./routes/payment'));
+  const leaderboard = await import('./routes/leaderboard.js');
+  app.use('/api/leaderboard', leaderboard.default);
 } catch (e) {
-  console.warn("⚠️ Warning: Leaderboard or Payment routes not found yet.");
+  // console.log("Leaderboard route not loaded");
+}
+
+try {
+  const payment = await import('./routes/payment.js');
+  app.use('/api/payment', payment.default);
+} catch (e) {
+  // console.log("Payment route not loaded");
 }
 
 // --- HEALTH CHECKS ---
