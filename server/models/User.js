@@ -9,7 +9,7 @@ const UserSchema = new mongoose.Schema({
     type: String, 
     unique: true, 
     required: true, 
-    lowercase: true, // Завжди зберігаємо в нижньому регістрі для уникнення дублів
+    lowercase: true, 
     trim: true,
     index: true 
   },
@@ -17,61 +17,37 @@ const UserSchema = new mongoose.Schema({
   username: { 
     type: String, 
     unique: true, 
-    required: true, // Юзер вводить його після підключення гаманця
+    // 🔥 ВАЖЛИВО: ПРИБИРАЄМО required: true, бо при першому вході його ще немає!
+    // required: true, 
     trim: true,
     minlength: [3, 'Username must be at least 3 chars'],
     maxlength: [15, 'Username must be max 15 chars'],
-    match: [/^[a-zA-Z0-9_]+$/, 'Only letters, numbers and underscores allowed'] 
+    match: [/^[a-zA-Z0-9_]+$/, 'Only letters, numbers and underscores allowed'],
+    
+    // 🔥 АВТО-ГЕНЕРАЦІЯ ТИМЧАСОВОГО НІКУ (Щоб база не сварилася)
+    default: function() {
+       return `G-${this.walletAddress.slice(0,6).toUpperCase()}`;
+    }
   },
 
-  publicKey: { 
-    type: String, 
-    required: false, // Зробив необов'язковим, бо іноді TonConnect може не віддати його одразу
-    select: false    // Не повертати це поле при звичайних запитах (безпека)
-  },
+  publicKey: { type: String, required: false },
 
   // ==========================================
   // 🛡 SECURITY (Безпека)
   // ==========================================
-  nonce: { 
-    type: String, 
-    required: true,
-    default: () => uuidv4(),
-    select: false // Приховуємо nonce від фронтенду
-  },
+  nonce: { type: String, required: true, default: () => uuidv4() },
 
   // ==========================================
   // 🤝 REFERRAL SYSTEM (Рефералка)
   // ==========================================
-  referralCode: { 
-    type: String, 
-    unique: true, 
-    lowercase: true,
-    index: true 
-    // required: true прибрали, бо він генерується автоматично хуком нижче
-  },
-  
-  referredBy: { 
-    type: String, 
-    default: null,
-    index: true 
-  },
-  
-  inviteCount: { 
-    type: Number, 
-    default: 0,
-    index: -1 // Оптимізація для сортування (ТОП за інвайтами)
-  },
+  referralCode: { type: String, unique: true, lowercase: true, index: true },
+  referredBy: { type: String, default: null, index: true },
+  inviteCount: { type: Number, default: 0, index: -1 },
 
   // ==========================================
   // 💰 ECONOMY & PROGRESS (Економіка)
   // ==========================================
-  points: { 
-    type: Number, 
-    default: 0,
-    index: -1 // Оптимізація для сортування (ТОП за очками)
-  },
-
+  points: { type: Number, default: 0, index: -1 },
   dailyStreak: { type: Number, default: 0 },
   lastLoginDate: { type: Date, default: null },
 
@@ -80,14 +56,7 @@ const UserSchema = new mongoose.Schema({
   // ==========================================
   telegramHandle: { type: String, default: null, trim: true },
   twitterHandle: { type: String, default: null, trim: true },
-  
-  telegramId: { 
-    type: String, 
-    default: null, 
-    unique: true, 
-    sparse: true, // Дозволяє багато NULL значень (якщо не прив'язав ТГ)
-    select: false // Приховуємо ID для безпеки
-  },
+  telegramId: { type: String, default: null, unique: true, sparse: true },
 
   socialsFollowed: {
     twitter: { type: Boolean, default: false },
@@ -100,21 +69,20 @@ const UserSchema = new mongoose.Schema({
   hasPaidEarlyAccess: { type: Boolean, default: false },
   hasMintedNFT: { type: Boolean, default: false },
 
-}, { 
-  timestamps: true // Автоматичні поля createdAt та updatedAt
-});
+}, { timestamps: true });
 
 /**
  * 🔥 AUTOMATION HOOKS 🔥
- * Цей код спрацьовує ПЕРЕД збереженням у базу.
- * Він автоматично створює реферальний код із Username.
  */
 UserSchema.pre('save', function(next) {
-  // 1. Генерація реферального коду
-  if (this.isModified('username') || (this.isNew && !this.referralCode)) {
-    if (this.username) {
-      this.referralCode = this.username.toLowerCase();
-    }
+  // 1. Якщо рефералки немає - створюємо її з username
+  if (!this.referralCode) {
+     if (this.username) {
+        this.referralCode = this.username.toLowerCase();
+     } else {
+        // Якщо навіть username немає (раптом), то з гаманця
+        this.referralCode = `ref-${this.walletAddress.slice(0,8)}`;
+     }
   }
 
   // 2. Гарантія нижнього регістру для гаманця
