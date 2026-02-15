@@ -75,21 +75,25 @@ const Leaderboard: React.FC = () => {
 
       <div className="relative z-10 max-w-5xl mx-auto pt-10 px-4 sm:px-6">
         
-        {/* --- HEADER --- */}
-        <div className="text-center mb-12">
+       {/* --- HEADER --- */}
+        {/* Додав pt-16, щоб опустити заголовок нижче */}
+        <div className="text-center mb-20 pt-16">
            <motion.div 
              initial={{ opacity: 0, y: -20 }} 
              animate={{ opacity: 1, y: 0 }}
-             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-yellow-500/5 border border-yellow-500/10 mb-6 backdrop-blur-md"
+             className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-yellow-500/5 border border-yellow-500/10 mb-8 backdrop-blur-md"
            >
-              <Trophy className="w-3.5 h-3.5 text-yellow-500" />
-              <span className="text-[10px] font-mono text-yellow-200 uppercase tracking-[0.2em] font-bold">Season 1: Genesis</span>
+              <Trophy className="w-4 h-4 text-yellow-500" />
+              <span className="text-[10px] font-mono text-yellow-200 uppercase tracking-[0.25em] font-bold">
+                Season 1: Genesis
+              </span>
            </motion.div>
 
-           <h1 className="text-5xl md:text-7xl font-cinzel font-black mb-4 tracking-tighter text-white uppercase drop-shadow-2xl">
+           <h1 className="text-5xl md:text-8xl font-cinzel font-black mb-6 tracking-tighter text-white uppercase drop-shadow-2xl">
               Hall of <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-amber-600">Legends</span>
            </h1>
-           <p className="text-gray-400 max-w-lg mx-auto leading-relaxed font-light text-sm">
+           
+           <p className="text-gray-400 max-w-xl mx-auto leading-relaxed font-light text-sm md:text-base tracking-wide">
               The elite pioneers of the Skylands. Rankings are synthesized from Aether production and tactical expansion.
            </p>
         </div>
