@@ -213,7 +213,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                         <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Secure Uplink</p>
                         <div className="flex items-center gap-2 p-2 bg-[#050505] rounded-xl border border-white/10 group-hover:border-white/20 transition-colors">
                             <div className="flex-1 px-3 py-2 text-[10px] font-mono text-gray-400 truncate select-all">
-                                t.me/AetheriaBot?start={user.referralCode}
+                                Aetheria-skylands.vercel.app?start={user.referralCode}
                             </div>
                             <button 
                                 onClick={copyReferral}
