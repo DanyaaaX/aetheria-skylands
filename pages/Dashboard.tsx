@@ -1,12 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import { 
-  CheckCircle2, Lock, Zap, User as UserIcon, LogIn, 
-  RefreshCcw, Loader2, Twitter, Send, 
-  Box, Share2, Copy, Globe, Link as LinkIcon, Shield, Gem, Map, Scan, Radio
+  CheckCircle2, Lock, Zap, Coins, User as UserIcon, LogIn, 
+  RefreshCcw, AlertTriangle, Loader2, Twitter, Send, 
+  Box, Share2, Copy, Globe, Link as LinkIcon, Shield, Crown, Gem, Map
 } from 'lucide-react';
-import { User } from '../types'; 
+import { User } from '../types'; // Переконайся, що в типах є поля inviteCount, hasPaidEarlyAccess тощо
 import { ADMIN_WALLET, INVITES_FOR_EA, SOCIAL_LINKS, API_BASE_URL } from '../constants';
 
 interface DashboardProps {
@@ -17,14 +17,18 @@ interface DashboardProps {
 }
 
 // --- BADGE SYSTEM CONFIGURATION ---
+// Визначаємо умови отримання бейджів
 const BADGE_DEFINITIONS = [
-  { id: 'genesis', label: 'Genesis Era', icon: Globe, color: 'text-blue-400', condition: () => true },
+  { id: 'genesis', label: 'Genesis Era', icon: Globe, color: 'text-blue-400', condition: () => true }, // Всі отримують
   { id: 'early', label: 'Early Adopter', icon: UserIcon, color: 'text-cyan-400', condition: () => true },
   { id: 'whitelist', label: 'Whitelisted', icon: Shield, color: 'text-emerald-400', condition: (u: User) => u.inviteCount >= INVITES_FOR_EA },
-  { id: 'alpha', label: 'Alpha Access', icon: Zap, color: 'text-yellow-400', condition: (u: User) => u.hasPaidEarlyAccess },
+  { id: 'alpha', label: 'Alpha Access', icon: KeyIcon, color: 'text-yellow-400', condition: (u: User) => u.hasPaidEarlyAccess },
   { id: 'minted', label: 'Artifact Holder', icon: Gem, color: 'text-purple-400', condition: (u: User) => u.hasMintedNFT },
   { id: 'island', label: 'Island Owner', icon: Map, color: 'text-orange-400', condition: (u: User) => u.hasMintedNFT },
 ];
+
+// Helper component for Icon rendering
+function KeyIcon(props: any) { return <Zap {...props} />; }
 
 const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) => {
   const [tonConnectUI] = useTonConnectUI();
@@ -33,11 +37,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
   const [isPolling, setIsPolling] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  
-  // Стан для анімації сканування конкретного завдання
-  const [scanningTask, setScanningTask] = useState<string | null>(null);
 
   // --- LOGIC: BADGE CALCULATION ---
+  // Автоматично вираховуємо бейджі на основі поточного стану юзера
   const earnedBadges = useMemo(() => {
     if (!user) return [];
     return BADGE_DEFINITIONS.filter(badge => badge.condition(user));
@@ -53,44 +55,34 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
     }
   };
 
-  // --- LOGIC: SCAN PROTOCOL (QUESTS ONLY) ---
-  // Розділена логіка: це перевірка квесту для бейджів, а не прив'язка профілю
-  const handleScanProtocol = async (platform: 'twitter' | 'telegram') => {
-    if (scanningTask) return; // Запобігаємо подвійним клікам
-
+  // --- LOGIC: SOCIAL TASK VERIFY (NOT BINDING) ---
+  // Це виключно перевірка виконання завдання (клік по посиланню)
+  const handleTaskVerify = async (platform: 'twitter' | 'telegram') => {
     try {
-      setScanningTask(platform); // Вмикаємо анімацію сканування
-      
-      // 1. Відкриваємо цільовий протокол
+      setLoading(true);
+      // 1. Відкриваємо посилання
       window.open(platform === 'twitter' ? SOCIAL_LINKS.TWITTER : SOCIAL_LINKS.TELEGRAM, '_blank');
       
-      // 2. Імітуємо роботу сканера (візуальний ефект затримки)
-      await new Promise(r => setTimeout(r, 5000));
-
-      // 3. Відправляємо запит на перевірку квесту
-      // Використовуємо окремий шлях або емуляцію, щоб не псувати auth
-      // Тут ми припускаємо, що бекенд має ендпоінт або ми просто оновлюємо UI
-      const res = await fetch(`${API_BASE_URL}/api/quests/verify`, { 
+      // 2. Імітуємо затримку перевірки (так як реальний API X/TG платний або складний)
+      await new Promise(r => setTimeout(r, 4000)); 
+      
+      // 3. Відправляємо на бекенд підтвердження виконання квесту
+      // Endpoint має просто ставити true у socialsFollowed, БЕЗ переписування даних профілю
+      const res = await fetch(`${API_BASE_URL}/api/auth/update-socials`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ walletAddress: user?.walletAddress, platform })
       });
+      const data = await res.json();
       
-      if (res.ok) {
-         const data = await res.json();
-         if (data.success) setUser(data.user);
+      if (data.success) {
+         setUser(data.user);
       } else {
-         // Fallback: Якщо API ще немає, емулюємо успіх для UI
-         setUser(prev => prev ? ({
-             ...prev,
-             socialsFollowed: { ...prev.socialsFollowed, [platform]: true }
-         }) : null);
+         throw new Error("Verification failed");
       }
-
     } catch (e) {
-      setLocalError(`Signal lost for ${platform}. Retry.`);
+      setLocalError(`Could not verify ${platform} task. Please try again.`);
     } finally {
-      setScanningTask(null);
       setLoading(false);
     }
   };
@@ -154,12 +146,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
     return (
       <div className="min-h-screen bg-[#030305] flex flex-col items-center justify-center p-4">
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
-            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6 border border-white/10 relative">
-                <div className="absolute inset-0 bg-cyan-500/20 blur-xl rounded-full animate-pulse"></div>
-                <LogIn className="w-8 h-8 text-gray-400 relative z-10" /> 
+            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6 border border-white/10">
+                <LogIn className="w-8 h-8 text-gray-400" />
             </div>
             <h2 className="text-2xl font-cinzel font-bold text-white mb-4">ACCESS RESTRICTED</h2>
-            <button onClick={() => tonConnectUI.openModal()} className="px-8 py-3 bg-white text-black font-bold rounded-full uppercase tracking-widest text-xs hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+            <button onClick={() => tonConnectUI.openModal()} className="px-8 py-3 bg-white text-black font-bold rounded-full uppercase tracking-widest text-xs hover:bg-gray-200 transition-colors">
                 Connect Wallet
             </button>
         </motion.div>
@@ -195,8 +186,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                 <UserIcon className="w-5 h-5 text-cyan-500" />
                 <h1 className="text-lg font-cinzel font-bold tracking-widest text-white uppercase">Command Center</h1>
             </div>
-            <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_#22c55e]" />
+            <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                 <span className="text-[10px] font-mono text-gray-400 uppercase">System Online</span>
             </div>
         </div>
@@ -206,27 +197,23 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
           {/* --- LEFT COLUMN (STATS & BADGES) --- */}
           <div className="lg:col-span-4 space-y-6">
             
-            {/* 1. BADGE COLLECTION */}
-            <div className="p-6 rounded-[2rem] bg-[#0E0E10] border border-white/5 relative overflow-hidden backdrop-blur-sm">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-4 flex items-center gap-2">
-                    <Scan className="w-3 h-3" /> Identity Matrix (Badges)
-                </h3>
+            {/* 1. BADGE COLLECTION (NEW SECTION) */}
+            <div className="p-6 rounded-[2rem] bg-[#0E0E10] border border-white/5 relative overflow-hidden">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-4">Identity Matrix (Badges)</h3>
                 <div className="flex flex-wrap gap-2">
-                    <AnimatePresence>
-                        {earnedBadges.map((badge) => (
-                            <motion.div 
-                                key={badge.id}
-                                initial={{ scale: 0.8, opacity: 0, y: 10 }}
-                                animate={{ scale: 1, opacity: 1, y: 0 }}
-                                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#151518] border border-white/5 hover:border-white/20 transition-all cursor-default group hover:shadow-[0_0_15px_rgba(255,255,255,0.05)]"
-                            >
-                                <badge.icon className={`w-3 h-3 ${badge.color}`} />
-                                <span className="text-[10px] font-bold text-gray-300 uppercase tracking-wide group-hover:text-white transition-colors">
-                                    {badge.label}
-                                </span>
-                            </motion.div>
-                        ))}
-                    </AnimatePresence>
+                    {earnedBadges.map((badge) => (
+                        <motion.div 
+                            key={badge.id}
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#151518] border border-white/5 hover:border-white/10 transition-colors cursor-default group"
+                        >
+                            <badge.icon className={`w-3 h-3 ${badge.color}`} />
+                            <span className="text-[10px] font-bold text-gray-300 uppercase tracking-wide group-hover:text-white transition-colors">
+                                {badge.label}
+                            </span>
+                        </motion.div>
+                    ))}
                     {earnedBadges.length === 0 && (
                         <span className="text-xs text-gray-600 font-mono">No attributes synthesized yet.</span>
                     )}
@@ -236,19 +223,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
             {/* 2. REGISTRY EXPANSION */}
             <div className="p-8 rounded-[2rem] bg-[#0E0E10] border border-white/5 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full blur-[60px]"></div>
-                <div className="flex justify-between items-start mb-8 relative z-10">
+                <div className="flex justify-between items-start mb-8">
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2">Registry Expansion</p>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-5xl font-cinzel font-bold text-white drop-shadow-lg">{user.inviteCount}</span>
+                            <span className="text-5xl font-cinzel font-bold text-white">{user.inviteCount}</span>
                             <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">Recruits</span>
                         </div>
                     </div>
-                    <button onClick={copyReferral} className="w-10 h-10 rounded-xl bg-[#1A1A1E] flex items-center justify-center text-cyan-500 border border-white/5 hover:bg-[#25252A] hover:border-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.2)] transition-all">
+                    <button onClick={copyReferral} className="w-10 h-10 rounded-xl bg-[#1A1A1E] flex items-center justify-center text-cyan-500 border border-white/5 hover:bg-[#25252A] transition-colors">
                         <Share2 className="w-4 h-4" />
                     </button>
                 </div>
-                <div className="flex items-center gap-2 p-1.5 bg-[#050505] rounded-xl border border-white/5 mb-4 relative z-10">
+                <div className="flex items-center gap-2 p-1.5 bg-[#050505] rounded-xl border border-white/5 mb-4">
                     <div className="flex-1 px-3 py-2 text-xs font-mono text-gray-400 truncate select-all">
                         https://t.me/AetheriaBot?start={user.referralCode}
                     </div>
@@ -258,20 +245,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                 </div>
             </div>
 
-            {/* 3. MOBILIZATION */}
+            {/* 3. PROGRESS BAR */}
             <div className="p-8 rounded-[2rem] bg-[#0E0E10] border border-white/5 relative">
                 <div className="flex items-center gap-2 mb-6">
-                    <Radio className="w-4 h-4 text-cyan-500 animate-pulse" />
+                    <Zap className="w-4 h-4 text-cyan-500" />
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-500">Mobilization</span>
                 </div>
-                <div className="w-full h-2 bg-[#1A1A1E] rounded-full overflow-hidden mb-2 relative">
+                <div className="w-full h-2 bg-[#1A1A1E] rounded-full overflow-hidden mb-2">
                     <motion.div 
                         initial={{ width: 0 }}
                         animate={{ width: `${inviteProgress}%` }}
-                        className="h-full bg-gradient-to-r from-cyan-600 to-blue-600 relative z-10"
+                        className="h-full bg-gradient-to-r from-cyan-600 to-blue-600"
                     />
-                     {/* Grid Pattern in bar */}
-                    <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 z-20"></div>
                 </div>
                 <div className="flex justify-between text-[9px] uppercase tracking-wider font-mono text-gray-500">
                     <span>Current: {user.inviteCount}</span>
@@ -284,7 +269,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
           <div className="lg:col-span-8 space-y-4">
             
             {/* STAGE 1: REGISTRY (DONE) */}
-            <div className="p-6 rounded-[2rem] bg-[#0E0E10] border border-white/5 flex items-center gap-6 opacity-60 hover:opacity-100 transition-opacity cursor-default">
+            <div className="p-6 rounded-[2rem] bg-[#0E0E10] border border-white/5 flex items-center gap-6 opacity-60 grayscale hover:grayscale-0 transition-all">
                 <div className="w-12 h-12 rounded-full bg-[#151518] border border-white/5 flex items-center justify-center shrink-0">
                     <Globe className="w-5 h-5 text-green-500" />
                 </div>
@@ -296,10 +281,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
             </div>
 
             {/* STAGE 2: EARLY ACCESS */}
-            <div className={`p-6 md:p-8 rounded-[2rem] bg-[#0E0E10] border transition-all relative overflow-hidden ${user.hasPaidEarlyAccess ? 'border-green-500/20' : 'border-white/5'}`}>
-                 {/* Background ambient glow */}
-                {user.hasPaidEarlyAccess && <div className="absolute right-0 top-0 w-64 h-64 bg-green-500/5 blur-[80px] -z-10" />}
-
+            <div className={`p-6 md:p-8 rounded-[2rem] bg-[#0E0E10] border transition-all relative ${user.hasPaidEarlyAccess ? 'border-green-500/20' : 'border-white/5'}`}>
                 <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
                     <div className={`w-12 h-12 rounded-full border flex items-center justify-center shrink-0 ${user.hasPaidEarlyAccess ? 'bg-[#151518] border-green-500/20' : 'bg-[#151518] border-yellow-500/20'}`}>
                         {user.hasPaidEarlyAccess ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <LinkIcon className="w-5 h-5 text-yellow-500" />}
@@ -318,9 +300,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                                 <button 
                                     onClick={handlePayment}
                                     disabled={loading || isPolling}
-                                    className="px-6 py-3 rounded-xl bg-[#1A1A1E] border border-white/10 hover:border-yellow-500/50 hover:bg-[#202025] text-white text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 group"
+                                    className="px-6 py-3 rounded-xl bg-[#1A1A1E] border border-white/10 hover:border-yellow-500/50 hover:bg-[#202025] text-white text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2"
                                 >
-                                    {loading || isPolling ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3 text-yellow-500 group-hover:scale-110 transition-transform" />}
+                                    {loading || isPolling ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3 text-yellow-500" />}
                                     Initiate Transfer (0.05 TON)
                                 </button>
                                 <button onClick={handleManualCheck} disabled={isPolling} className="w-10 h-10 rounded-xl bg-[#1A1A1E] border border-white/10 flex items-center justify-center hover:text-white text-gray-400">
@@ -344,114 +326,64 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                     
                     <div className="flex flex-col md:flex-row gap-8">
                         {/* 3D Cube / Visual */}
-                        <div className="w-full md:w-32 h-32 rounded-3xl bg-[#0F0F12] border border-white/5 flex items-center justify-center shrink-0 relative shadow-2xl mx-auto md:mx-0 overflow-hidden">
-                             {/* Internal Grid */}
-                             <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(168,85,247,0.05)_50%,transparent_75%)] bg-[length:10px_10px]"></div>
-
+                        <div className="w-full md:w-32 h-32 rounded-3xl bg-[#0F0F12] border border-white/5 flex items-center justify-center shrink-0 relative shadow-2xl mx-auto md:mx-0">
                              <div className={`absolute inset-0 bg-purple-500/10 blur-xl ${user.hasPaidEarlyAccess ? 'opacity-100' : 'opacity-0'}`}></div>
                              {user.hasMintedNFT ? (
-                                 <Gem className="w-12 h-12 text-purple-400 relative z-10 drop-shadow-[0_0_15px_rgba(168,85,247,0.8)] animate-pulse" />
+                                 <Gem className="w-12 h-12 text-purple-400 relative z-10 drop-shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
                              ) : (
                                  <Box className={`w-12 h-12 relative z-10 ${user.hasPaidEarlyAccess ? 'text-purple-400/50' : 'text-gray-700'}`} />
                              )}
                         </div>
 
                         <div className="flex-grow w-full">
-                            <h3 className="text-2xl font-cinzel font-bold text-white uppercase tracking-widest mb-2">Genesis Artifact</h3>
+                            <h3 className="text-2xl font-cinzel font-bold text-white uppercase tracking-widest mb-2">Legendary Mint</h3>
                             <p className="text-xs text-gray-500 font-mono uppercase tracking-widest mb-6">
-                                Execute verification protocols to materialize Artifact.<br/>
+                                Complete tasks to materialize Genesis Artifact.<br/>
+                                <span className="text-purple-400/80">Awards: 'Island Owner' & 'Minted NFT' Badges.</span>
                             </p>
 
                             <div className={`space-y-4 ${!user.hasPaidEarlyAccess ? 'opacity-30 pointer-events-none filter blur-[1px]' : ''}`}>
                                 
-                                {/* QUESTS SECTION - STYLED AS HOLOGRAPHIC DATA CARDS */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    
-                                    {/* QUEST: TWITTER */}
+                                {/* SOCIAL TASKS (SEPARATED FROM PROFILE) */}
+                                <div className="grid grid-cols-2 gap-4">
                                     <button 
-                                        onClick={() => handleScanProtocol('twitter')}
-                                        disabled={user.socialsFollowed.twitter || !!scanningTask}
-                                        className={`group relative h-14 rounded-xl border overflow-hidden transition-all flex items-center px-4 gap-3 ${
+                                        onClick={() => handleTaskVerify('twitter')}
+                                        disabled={user.socialsFollowed.twitter}
+                                        className={`py-3 rounded-xl border text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition-all ${
                                             user.socialsFollowed.twitter 
-                                            ? 'bg-green-900/10 border-green-500/30' 
-                                            : 'bg-[#0F0F12] border-white/5 hover:border-cyan-500/50'
+                                            ? 'bg-[#0F0F12] border-green-500/30 text-green-500 cursor-default' 
+                                            : 'bg-[#0F0F12] border-white/5 text-gray-400 hover:text-white hover:border-white/10'
                                         }`}
                                     >
-                                        {/* Scanning animation line */}
-                                        {scanningTask === 'twitter' && (
-                                            <motion.div 
-                                                initial={{ left: '-100%' }} animate={{ left: '100%' }} transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-                                                className="absolute top-0 bottom-0 w-1/3 bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent skew-x-12 z-0"
-                                            />
-                                        )}
-
-                                        <div className={`relative z-10 p-1.5 rounded bg-black/50 ${user.socialsFollowed.twitter ? 'text-green-500' : 'text-cyan-500'}`}>
-                                            <Twitter className="w-4 h-4" />
-                                        </div>
-                                        
-                                        <div className="relative z-10 flex flex-col items-start">
-                                            <span className="text-[9px] text-gray-500 font-mono uppercase tracking-widest leading-none mb-1">Target: X Protocol</span>
-                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${user.socialsFollowed.twitter ? 'text-green-400' : 'text-white'}`}>
-                                                {user.socialsFollowed.twitter 
-                                                    ? 'Uplink Established' 
-                                                    : scanningTask === 'twitter' ? 'Scanning...' : 'Initialize'}
-                                            </span>
-                                        </div>
-
-                                        {user.socialsFollowed.twitter && <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto" />}
+                                        {user.socialsFollowed.twitter ? <CheckCircle2 className="w-3 h-3" /> : <Twitter className="w-3 h-3" />}
+                                        {user.socialsFollowed.twitter ? 'Task Complete' : 'Follow X'}
                                     </button>
                                     
-                                    {/* QUEST: TELEGRAM */}
                                     <button 
-                                        onClick={() => handleScanProtocol('telegram')}
-                                        disabled={user.socialsFollowed.telegram || !!scanningTask}
-                                        className={`group relative h-14 rounded-xl border overflow-hidden transition-all flex items-center px-4 gap-3 ${
+                                        onClick={() => handleTaskVerify('telegram')}
+                                        disabled={user.socialsFollowed.telegram}
+                                        className={`py-3 rounded-xl border text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition-all ${
                                             user.socialsFollowed.telegram 
-                                            ? 'bg-green-900/10 border-green-500/30' 
-                                            : 'bg-[#0F0F12] border-white/5 hover:border-cyan-500/50'
+                                            ? 'bg-[#0F0F12] border-green-500/30 text-green-500 cursor-default' 
+                                            : 'bg-[#0F0F12] border-white/5 text-gray-400 hover:text-white hover:border-white/10'
                                         }`}
                                     >
-                                        {/* Scanning animation line */}
-                                        {scanningTask === 'telegram' && (
-                                            <motion.div 
-                                                initial={{ left: '-100%' }} animate={{ left: '100%' }} transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-                                                className="absolute top-0 bottom-0 w-1/3 bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent skew-x-12 z-0"
-                                            />
-                                        )}
-
-                                        <div className={`relative z-10 p-1.5 rounded bg-black/50 ${user.socialsFollowed.telegram ? 'text-green-500' : 'text-cyan-500'}`}>
-                                            <Send className="w-4 h-4" />
-                                        </div>
-                                        
-                                        <div className="relative z-10 flex flex-col items-start">
-                                            <span className="text-[9px] text-gray-500 font-mono uppercase tracking-widest leading-none mb-1">Target: TG Channel</span>
-                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${user.socialsFollowed.telegram ? 'text-green-400' : 'text-white'}`}>
-                                                {user.socialsFollowed.telegram 
-                                                    ? 'Uplink Established' 
-                                                    : scanningTask === 'telegram' ? 'Scanning...' : 'Initialize'}
-                                            </span>
-                                        </div>
-
-                                        {user.socialsFollowed.telegram && <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto" />}
+                                        {user.socialsFollowed.telegram ? <CheckCircle2 className="w-3 h-3" /> : <Send className="w-3 h-3" />}
+                                        {user.socialsFollowed.telegram ? 'Task Complete' : 'Join TG'}
                                     </button>
                                 </div>
 
                                 {/* MINT ACTION */}
                                 <button 
                                     disabled={!user.socialsFollowed.twitter || !user.socialsFollowed.telegram || user.hasMintedNFT}
-                                    className={`w-full py-4 rounded-xl font-black uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-2 transition-all shadow-lg relative overflow-hidden group ${
+                                    className={`w-full py-4 rounded-xl font-black uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-2 transition-all shadow-lg ${
                                         user.hasMintedNFT 
                                         ? 'bg-[#0F0F12] text-purple-400 border border-purple-500/30 cursor-default'
                                         : (user.socialsFollowed.twitter && user.socialsFollowed.telegram)
-                                            ? 'bg-gradient-to-r from-purple-700 to-indigo-700 text-white shadow-purple-900/40 hover:scale-[1.01]'
+                                            ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-purple-900/30'
                                             : 'bg-[#15151A] text-gray-600 border border-white/5 cursor-not-allowed'
                                     }`}
                                 >
-                                     {/* Shine effect on ready button */}
-                                    {!user.hasMintedNFT && user.socialsFollowed.twitter && user.socialsFollowed.telegram && (
-                                        <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_50%,transparent_75%)] bg-[length:250%_250%] animate-shine" />
-                                    )}
-
                                     {user.hasMintedNFT ? (
                                         <>Artifact Materialized</>
                                     ) : (
