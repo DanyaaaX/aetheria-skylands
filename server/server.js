@@ -15,7 +15,7 @@ const app = express();
 // --- SERVER CONFIGURATION ---
 app.set('trust proxy', 1);
 
-// --- MIDDLEWARE & SECURITY (MERGED) ---
+// --- MIDDLEWARE & SECURITY ---
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
@@ -24,17 +24,21 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
   'https://aetheria-skylands.vercel.app',
-  'https://aetheria.vercel.app'
+  'https://aetheria.vercel.app',
+  process.env.FRONTEND_URL // Added from CODE 2
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      return callback(null, true);
+    } else {
+      console.warn(`Blocked CORS for origin: ${origin}`);
+      // Allowing strictly allowed origins, adhering to security best practices
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new Error(msg), false);
     }
-    return callback(null, true);
   },
   methods: ['GET', 'POST', 'OPTIONS'],
   credentials: true,
@@ -51,10 +55,10 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rate Limiting
+// Rate Limiting (Using CODE 2 settings: max 1000)
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
-  max: 5000, 
+  max: 1000, 
   standardHeaders: true,
   legacyHeaders: false,
   validate: { xForwardedForHeader: false } 
@@ -69,7 +73,7 @@ if (!ADMIN_WALLET) {
   console.error("🚨 CRITICAL: ADMIN_WALLET is not defined in environment variables.");
 }
 
-// --- CRYPTO & BLOCKCHAIN HELPERS ---
+// --- CRYPTO & BLOCKCHAIN HELPERS (Kept from CODE 1 for Mint/Safety) ---
 
 const validateWalletAddress = (address) => {
     if (!address || typeof address !== 'string') return false;
@@ -105,6 +109,7 @@ const verifyOnChainPayment = async (userWalletAddress) => {
     console.log(`🔍 [CHECK] Початок перевірки для: ${userWalletAddress}`);
     const endpoint = `https://toncenter.com/api/v2/getTransactions?address=${ADMIN_WALLET}&limit=50&archival=true`;
     const headers = process.env.TON_API_KEY ? { 'X-API-Key': process.env.TON_API_KEY } : {};
+    
     const response = await fetch(endpoint, { headers });
     const data = await response.json();
     
@@ -148,6 +153,7 @@ const authRouter = express.Router();
 
 /**
  * GET /api/auth/nonce/:walletAddress
+ * Kept from CODE 1 as a utility
  */
 authRouter.get('/nonce/:walletAddress', async (req, res) => {
   try {
@@ -172,54 +178,59 @@ authRouter.get('/nonce/:walletAddress', async (req, res) => {
 
 /**
  * POST /api/auth/login
+ * INJECTED CODE 2 LOGIC: Simplified login (No Signature Required) to fix 401 errors.
  */
 authRouter.post('/login', async (req, res) => {
-  const { walletAddress, publicKey, signature, message, username, referredBy } = req.body;
-
-  if (!walletAddress || !publicKey) {
-    return res.status(400).json({ error: "Credentials missing." });
-  }
-
   try {
-    const isValid = verifySignature(publicKey, signature, message);
-    if (!isValid) {
-        return res.status(401).json({ error: "Invalid cryptographic signature." });
+    const { walletAddress, referredBy } = req.body;
+
+    if (!walletAddress) {
+      return res.status(400).json({ error: "Wallet address is required" });
     }
 
+    // 1. Find User
     let user = await User.findOne({ walletAddress });
 
+    // 2. Register if not exists (CODE 2 Logic)
     if (!user) {
-      if (!username) return res.status(400).json({ error: "Username required for registration." });
+      console.log(`🆕 New User Registration: ${walletAddress}`);
       
-      const cleanUsername = username.toUpperCase().trim();
-      const existingName = await User.findOne({ username: cleanUsername });
-      if (existingName) return res.status(409).json({ error: "Username unavailable." });
-
+      // Note: User model should handle default username/referralCode generation
       user = new User({
         walletAddress,
-        publicKey,
-        username: cleanUsername,
-        referralCode: cleanUsername.toLowerCase(),
         referredBy: referredBy || null,
-        nonce: uuidv4(),
-        socialsFollowed: { twitter: false, telegram: false },
-        hasPaidEarlyAccess: false,
-        hasMintedNFT: false
+        nonce: uuidv4() // Maintain compatibility with nonce system
       });
+
       await user.save();
 
+      // Referral Bonus (CODE 2 Logic)
       if (referredBy) {
         await User.findOneAndUpdate(
           { referralCode: referredBy.toLowerCase() },
-          { $inc: { inviteCount: 1, points: 5 } }
+          { $inc: { inviteCount: 1, points: 500 } } // +500 points per invite
         );
       }
     }
 
-    res.json({ success: true, user });
+    // 3. Return Data (CODE 2 Format)
+    return res.status(200).json({ 
+      success: true,
+      user: {
+        id: user._id,
+        username: user.username,
+        walletAddress: user.walletAddress,
+        points: user.points,
+        inviteCount: user.inviteCount,
+        hasPaidEarlyAccess: user.hasPaidEarlyAccess,
+        hasMintedNFT: user.hasMintedNFT,
+        socialsFollowed: user.socialsFollowed,
+        referralCode: user.referralCode
+      }
+    });
   } catch (err) {
     console.error("Login Error:", err);
-    res.status(500).json({ error: 'Auth Failed' });
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
@@ -238,6 +249,7 @@ authRouter.post('/check', async (req, res) => {
 
 /**
  * POST /api/auth/update-username
+ * Kept from CODE 1 to allow profile updates with security
  */
 authRouter.post('/update-username', async (req, res) => {
   const { walletAddress, newUsername, signature, message, publicKey } = req.body;
@@ -246,6 +258,7 @@ authRouter.post('/update-username', async (req, res) => {
     const user = await User.findOne({ walletAddress });
     if (!user) return res.status(404).json({ error: "User not found" });
 
+    // Verify signature for sensitivity of username change
     if (!verifySignature(publicKey, signature, message)) {
         return res.status(401).json({ error: "Signature verification failed." });
     }
@@ -269,25 +282,34 @@ authRouter.post('/update-username', async (req, res) => {
 
 /**
  * POST /api/auth/update-socials
+ * INJECTED CODE 2 LOGIC: Optimized using findOneAndUpdate
  */
 authRouter.post('/update-socials', async (req, res) => {
   try {
     const { walletAddress, platform } = req.body;
-    const user = await User.findOne({ walletAddress });
+    
+    const updateQuery = {};
+    if (platform === 'twitter') updateQuery['socialsFollowed.twitter'] = true;
+    if (platform === 'telegram') updateQuery['socialsFollowed.telegram'] = true;
+
+    const user = await User.findOneAndUpdate(
+      { walletAddress }, 
+      { $set: updateQuery },
+      { new: true }
+    );
+
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    if (platform === 'twitter') user.socialsFollowed.twitter = true;
-    if (platform === 'telegram') user.socialsFollowed.telegram = true;
-
-    await user.save();
     res.json({ success: true, user });
   } catch (err) {
+    console.error("Social Update Error:", err);
     res.status(500).json({ error: "Social update failed" });
   }
 });
 
 /**
  * POST /api/auth/mint
+ * Kept from CODE 1 (Critical Game Logic)
  */
 authRouter.post('/mint', async (req, res) => {
   const { walletAddress, updateField } = req.body;
@@ -298,6 +320,8 @@ authRouter.post('/mint', async (req, res) => {
 
     if (updateField === 'hasPaidEarlyAccess') {
         if (user.hasPaidEarlyAccess) return res.json({ success: true, user });
+        
+        // Uses CODE 1 helper
         const isPaid = await verifyOnChainPayment(user.walletAddress);
         
         if (isPaid) {
@@ -334,7 +358,7 @@ app.use('/api/payment', require('./routes/payment'));
 
 // --- HEALTH CHECKS ---
 app.get('/health', (req, res) => res.status(200).json({ status: 'OK' }));
-app.get('/', (req, res) => res.send('Aetheria Backend Active'));
+app.get('/', (req, res) => res.send('Aetheria Skylands Backend is Active 🚀'));
 
 // --- GLOBAL ERROR HANDLER ---
 app.use((err, req, res, next) => {
@@ -346,16 +370,21 @@ app.use((err, req, res, next) => {
 });
 
 // --- DATABASE & SERVER START ---
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI; 
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
+
+if (!MONGODB_URI) {
+    console.error("❌ CRITICAL: MONGODB_URI is not defined in .env");
+    process.exit(1);
+}
 
 mongoose.connect(MONGODB_URI)
   .then(() => {
-    console.log('>>> DB CONNECTION: SUCCESS');
-    const PORT = process.env.PORT || 5000;
+    console.log('✅ Connected to MongoDB');
+    const PORT = process.env.PORT || 5000; // Prefer CODE 1 port logic but fallbacks are good
     app.listen(PORT, () => {
-      console.log(`>>> SERVER LISTENING ON PORT ${PORT}`);
+      console.log(`🚀 Server running on port ${PORT}`);
     });
   })
   .catch(err => {
-    console.error('!!! DB CONNECTION FAILED:', err.message);
+    console.error('❌ MongoDB Connection Error:', err.message);
   });

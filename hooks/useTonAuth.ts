@@ -1,123 +1,108 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import { User } from '../types';
 import { API_BASE_URL } from '../constants';
 
 export const useTonAuth = () => {
+  // --- STATE MANAGEMENT (Merged CODE 1 & CODE 2) ---
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false); // From CODE 2
+  const [authError, setAuthError] = useState<string | null>(null); // From CODE 1
+
   const wallet = useTonWallet();
   const [tonConnectUI] = useTonConnectUI();
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [authError, setAuthError] = useState<string | null>(null);
 
-  // 1. Session Synchronization
-  // Structure from Code 1, Logic improved with Code 2 checks
-  const syncIdentity = useCallback(async () => {
-    if (!wallet?.account?.address) {
+  // --- CORE LOGIC (Injected CODE 2 Logic) ---
+  const checkAuth = useCallback(async () => {
+    // 1. If wallet is not connected
+    if (!wallet) {
       setUser(null);
-      setIsLoading(false);
+      setIsAuthenticated(false);
+      setAuthError(null);
       return;
     }
 
-    setIsLoading(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/check`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: wallet.account.address })
-      });
-      
-      const data = await res.json();
-      
-      // Verification logic from Code 2 (checks both exists AND user object)
-      if (data.exists && data.user) {
-        setUser(data.user);
-      } else {
-        setUser(null);
-      }
-    } catch (e) {
-      console.error("Identity registry synchronization failed", e);
-      setAuthError("Identity registry synchronization failed.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [wallet?.account?.address]);
-
-  // Auto-sync effect
-  useEffect(() => {
-    syncIdentity();
-  }, [syncIdentity]);
-
-  // 2. Login/Register with Real TON Proof
-  // Logic completely updated to Code 2 standards
-  const loginOrRegister = async (username?: string) => {
-    // Basic wallet check
-    if (!wallet) {
-      throw new Error("Neural link failed: Connect wallet first.");
+    // 2. Optimization: If user is already loaded and address matches (From CODE 2)
+    if (user && user.walletAddress === wallet.account.address) {
+      return;
     }
 
     setIsLoading(true);
     setAuthError(null);
 
     try {
-      // CRITICAL UPDATE FROM CODE 2: Check for TON Proof
-      // If the wallet didn't provide a signature during connection, we must disconnect/reconnect
-      if (!wallet.connectItems?.tonProof || !('proof' in wallet.connectItems.tonProof)) {
-        await tonConnectUI.disconnect();
-        const errMsg = "Session expired. Please connect wallet again to sign.";
-        setAuthError(errMsg);
-        setIsLoading(false);
-        return;
-      }
-
-      const proof = wallet.connectItems.tonProof.proof;
-
-      // Construct payload using Code 2's structure (Actual Proof Data)
-      const payload = {
-        walletAddress: wallet.account.address,
-        publicKey: wallet.account.publicKey,
-        signature: proof.signature,
-        message: JSON.stringify({
-          timestamp: proof.timestamp,
-          domain: proof.domain,
-          payload: proof.payload
-        }), // Sending proof data as a JSON string for backend verification
-        username: username || undefined,
-        referredBy: localStorage.getItem('referralCode') || undefined // Updated key to 'referralCode' per Code 2
-      };
-
-      // 3. Authenticate with Backend
-      const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      // 3. Auth Request (Updated to CODE 2's simplified flow + CODE 1's referral logic)
+      const referralCode = localStorage.getItem('referralCode');
+      
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          walletAddress: wallet.account.address,
+          referredBy: referralCode || undefined // Integrated from CODE 1/CODE 2 suggestion
+        }),
       });
 
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.error || "Authentication rejected.");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Auth failed (${response.status}): ${errorText}`);
       }
 
-      setUser(data.user);
-      return data.user;
+      const data = await response.json();
 
-    } catch (e: any) {
-      console.error("Login error:", e);
-      setAuthError(e.message);
-      throw e;
+      // Validation Logic from CODE 2
+      if (data.success && data.user) {
+        setUser(data.user);
+        setIsAuthenticated(true);
+        console.log("✅ Authenticated as:", data.user.username);
+      } else if (data.user) {
+        // Fallback for CODE 1 backend structure compatibility
+        setUser(data.user);
+        setIsAuthenticated(true);
+      } else {
+         // Handle case where response is ok but no user returned
+         setUser(null);
+         setIsAuthenticated(false);
+      }
+
+    } catch (error: any) {
+      console.error("❌ Authentication error:", error);
+      setAuthError(error.message || "Authentication failed.");
+      setIsAuthenticated(false);
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
+  }, [wallet, user]);
+
+  // --- EFFECTS ---
+  // Auto-sync effect from CODE 2
+  useEffect(() => {
+    checkAuth();
+  }, [wallet]); // Only re-run when wallet changes (CODE 2 Logic)
+
+  // --- COMPATIBILITY LAYER (Preserving CODE 1 API) ---
+  
+  // Adapter for manual login trigger (if needed by UI components)
+  const loginOrRegister = async (username?: string) => {
+    // Note: CODE 2 logic implies auto-creation/login via address. 
+    // Username param is kept for signature compatibility but logic relies on checkAuth.
+    await checkAuth();
+    return user;
   };
 
-  return { 
-    user, 
-    setUser, 
-    isLoading, 
-    authError, 
-    loginOrRegister, 
-    wallet, 
-    syncIdentity 
+  return {
+    user,
+    setUser,
+    isAuthenticated, // Added from CODE 2
+    isLoading,
+    authError,       // Kept from CODE 1
+    loginOrRegister, // Kept for backward compatibility
+    syncIdentity: checkAuth, // Alias to checkAuth for backward compatibility
+    wallet,
+    walletAddress: wallet?.account.address
   };
 };
