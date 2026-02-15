@@ -1,7 +1,8 @@
+import express from 'express';
+// 👇 ВАЖЛИВО: В ES Modules обов'язково вказувати розширення .js
+import User from '../models/User.js';
 
-const express = require('express');
 const router = express.Router();
-const User = require('../models/User');
 
 /**
  * GET /api/leaderboard
@@ -42,4 +43,4 @@ router.get('/', async (req, res) => {
 // Explicit health check sub-route
 router.get('/status', (req, res) => res.json({ service: 'Hall of Records', status: 'Operational' }));
 
-module.exports = router;
+export default router;

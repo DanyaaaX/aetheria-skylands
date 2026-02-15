@@ -34,6 +34,7 @@ const UserSchema = new mongoose.Schema({
   // ==========================================
   // 🤝 REFERRAL SYSTEM
   // ==========================================
+  // sparse: true тут важливий, щоб уникнути конфліктів, якщо поле раптом буде порожнім
   referralCode: { type: String, unique: true, lowercase: true, sparse: true },
   referredBy: { type: String, default: null, index: true },
   inviteCount: { type: Number, default: 0, index: true }, 
@@ -57,7 +58,7 @@ const UserSchema = new mongoose.Schema({
   telegramHandle: { type: String, default: null, trim: true },
   twitterHandle: { type: String, default: null, trim: true },
   
-  // sparse: true дозволяє багато null значень
+  // 🔥 КРИТИЧНО ВАЖЛИВО: sparse: true дозволяє мати багато користувачів з telegramId: null
   telegramId: { type: String, default: null, unique: true, sparse: true },
 
   socialsFollowed: {
@@ -77,12 +78,14 @@ const UserSchema = new mongoose.Schema({
  * 🔥 AUTOMATION HOOKS
  */
 UserSchema.pre('save', function(next) {
+  // 1. Авто-генерація реферального коду з юзернейму
   if (this.isModified('username') || this.isNew) {
     if (this.username) {
        this.referralCode = this.username.toLowerCase();
     }
   }
 
+  // 2. Гарантія нижнього регістру для гаманця
   if (this.isModified('walletAddress') && this.walletAddress) {
     this.walletAddress = this.walletAddress.toLowerCase();
   }
@@ -90,5 +93,8 @@ UserSchema.pre('save', function(next) {
   next();
 });
 
-// Експорт для ES Modules
-export default mongoose.models.User || mongoose.model('User', UserSchema);
+// ✅ Експорт для ES Modules
+// Перевірка mongoose.models.User запобігає помилці "OverwriteModelError" при перезапуску
+const User = mongoose.models.User || mongoose.model('User', UserSchema);
+
+export default User;
