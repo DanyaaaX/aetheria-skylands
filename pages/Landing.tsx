@@ -1,23 +1,21 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { TonConnectButton } from '@tonconnect/ui-react';
-import { Zap, BarChart3, Rocket, Send, Coins, MousePointerClick, Star } from 'lucide-react';
+import { TonConnectButton, useTonConnectUI } from '@tonconnect/ui-react';
+import { Zap, BarChart3, Rocket, Send, Coins, MousePointerClick } from 'lucide-react';
 
 const Landing: React.FC = () => {
-  
+  // Хук для керування модальним вікном гаманця
+  const [tonConnectUI] = useTonConnectUI();
+
   return (
     <div className="relative w-full min-h-screen bg-[#030305] text-white overflow-hidden selection:bg-cyan-500/30">
       
-      {/* --- BACKGROUND EFFECTS (ГЛИБИНА ТА ТЕКСТУРА) --- */}
+      {/* --- BACKGROUND EFFECTS --- */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        {/* 1. Основний градієнт фону */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#1a1a2e] via-[#050505] to-[#000000]" />
-        
-        {/* 2. Техно-сітка (Grid) */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
 
-        {/* 3. Кольорові плями (Orbs) */}
         <motion.div 
           animate={{ opacity: [0.3, 0.5, 0.3], scale: [1, 1.1, 1] }}
           transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
@@ -29,7 +27,6 @@ const Landing: React.FC = () => {
            className="absolute top-[20%] right-[10%] w-[400px] h-[400px] bg-cyan-500/15 rounded-full blur-[100px]" 
         />
         
-        {/* 4. Зірки (Stars) */}
         <div className="absolute inset-0 opacity-20">
             {[...Array(20)].map((_, i) => (
                 <div key={i} 
@@ -85,41 +82,47 @@ const Landing: React.FC = () => {
             </p>
           </motion.div>
           
-          {/* BUTTONS SWAPPED & STYLED */}
+          {/* BUTTONS SECTION */}
           <div className="flex flex-col sm:flex-row gap-5 justify-center items-center w-full max-w-md mx-auto">
-             {/* 1. TonConnect Button (Left) */}
+             {/* 1. TonConnect Button */}
              <div className="scale-105"> 
                 <TonConnectButton />
              </div>
 
-             {/* 2. Mint Button (Right - More Prominent) */}
-             <Link to="/dashboard" className="group relative w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] flex items-center justify-center gap-2 overflow-hidden border border-cyan-400/20">
+             {/* 2. Mint Button (Action: Open Wallet Modal) */}
+             <button 
+                onClick={() => tonConnectUI.openModal()}
+                className="group relative w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] flex items-center justify-center gap-2 overflow-hidden border border-cyan-400/20"
+             >
                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 skew-y-12"></div>
                 <Rocket className="w-5 h-5 relative z-10" />
                 <span className="relative z-10 tracking-wider text-sm">MINT GENESIS NFT</span>
-             </Link>
+             </button>
           </div>
         </section>
 
-        {/* --- FEATURE CARDS --- */}
+        {/* --- FEATURE CARDS (WITH COMING SOON BADGES) --- */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-32 relative z-10">
             <FeatureCard 
                 icon={<Coins className="text-yellow-400" />}
                 title="Passive Rewards"
                 desc="Hold Genesis Islands to earn Aether Points and $AETH tokens automatically."
                 color="yellow"
+                comingSoon={true}
             />
             <FeatureCard 
                 icon={<Send className="text-cyan-400" />}
                 title="TG Mini-App"
                 desc="Manage your sky empire and raid competitors directly from Telegram."
                 color="cyan"
+                comingSoon={true}
             />
             <FeatureCard 
                 icon={<BarChart3 className="text-purple-400" />}
                 title="Yield Multiplier"
                 desc="Artifacts increase output. Rarer islands yield higher daily revenue."
                 color="purple"
+                comingSoon={true}
             />
         </div>
 
@@ -130,7 +133,6 @@ const Landing: React.FC = () => {
             viewport={{ once: true }}
             className="w-full relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#0A0A0E]"
         >
-             {/* Gradient glow behind CTA */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-gradient-to-b from-purple-900/20 to-transparent opacity-50 pointer-events-none" />
             
             <div className="relative z-10 p-12 md:p-16 text-center">
@@ -151,10 +153,9 @@ const Landing: React.FC = () => {
   );
 };
 
-// Feature Card Component (Updated Design)
-const FeatureCard = ({ icon, title, desc, color }: { icon: React.ReactNode, title: string, desc: string, color: string }) => {
+// Feature Card Component (Updated with Coming Soon Badge)
+const FeatureCard = ({ icon, title, desc, color, comingSoon }: { icon: React.ReactNode, title: string, desc: string, color: string, comingSoon?: boolean }) => {
     
-    // Mapping colors for dynamic styles
     const colors: Record<string, string> = {
         yellow: "group-hover:border-yellow-500/50 group-hover:shadow-[0_0_30px_rgba(234,179,8,0.1)]",
         cyan: "group-hover:border-cyan-500/50 group-hover:shadow-[0_0_30px_rgba(6,182,212,0.1)]",
@@ -168,6 +169,15 @@ const FeatureCard = ({ icon, title, desc, color }: { icon: React.ReactNode, titl
         >
             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl pointer-events-none" />
             
+            {/* COMING SOON BADGE */}
+            {comingSoon && (
+                <div className="absolute top-5 right-5 px-2 py-1 bg-white/5 border border-white/10 rounded-md backdrop-blur-md">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-500 group-hover:text-white transition-colors">
+                        Coming Soon
+                    </span>
+                </div>
+            )}
+
             <div className="mb-5 p-3 bg-white/5 w-fit rounded-xl border border-white/5 backdrop-blur-md">
                 {icon}
             </div>
