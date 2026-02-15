@@ -94,24 +94,6 @@ const Leaderboard: React.FC = () => {
            </p>
         </div>
 
-        {/* --- TABS / CONTROLS --- */}
-        <div className="flex justify-center mb-12">
-            <div className="p-1 bg-[#0A0A0E] border border-white/10 rounded-xl flex gap-1 shadow-2xl">
-                <button 
-                  onClick={() => setActiveTab('global')}
-                  className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'global' ? 'bg-white/10 text-white shadow-inner' : 'text-gray-500 hover:text-white'}`}
-                >
-                    <Globe className="w-3 h-3" /> Global Sector
-                </button>
-                <button 
-                  onClick={() => setActiveTab('squad')}
-                  className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'squad' ? 'bg-white/10 text-white shadow-inner' : 'text-gray-500 hover:text-white'}`}
-                >
-                    <Users className="w-3 h-3" /> My Squad
-                </button>
-            </div>
-        </div>
-
         {loading ? (
            <div className="min-h-[400px] flex flex-col items-center justify-center">
               <Loader2 className="w-12 h-12 text-cyan-500 animate-spin mb-6" />
