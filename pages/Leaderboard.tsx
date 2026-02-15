@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Trophy, Medal, User as UserIcon, Loader2, Sparkles, 
-  AlertTriangle, RefreshCw, Globe, Users, Target, Shield 
+  Trophy, User as UserIcon, Loader2, 
+  AlertTriangle, RefreshCw 
 } from 'lucide-react';
 import { API_BASE_URL } from '../constants';
 
@@ -65,16 +65,15 @@ const Leaderboard: React.FC = () => {
   return (
     <div className="relative w-full min-h-screen bg-[#030305] text-white overflow-hidden pb-20 selection:bg-cyan-500/30">
       
-      {/* --- BACKGROUND DNA (CLEANED - No Rotating Arrow/Circle) --- */}
+      {/* --- BACKGROUND DNA --- */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#1a1a2e] via-[#050505] to-[#000000]" />
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
-        {/* Removed the rotating motion.div here for cleaner look */} 
       </div>
 
       <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6">
         
-        {/* --- HEADER (LOWERED) --- */}
+        {/* --- HEADER --- */}
         <div className="text-center mb-16 pt-24"> 
            <motion.div 
              initial={{ opacity: 0, y: -20 }} 
@@ -163,11 +162,11 @@ const Leaderboard: React.FC = () => {
 // --- SUB-COMPONENTS ---
 
 const PodiumCard = ({ player, rank }: { player: LeaderboardEntry, rank: number }) => {
-   // Removed the 'icon' property for rank 1 (Crown) as requested
+   // Removed icons logic completely
    const styles = {
-      1: { color: "text-yellow-400", border: "border-yellow-500/50", bg: "bg-yellow-500/10", shadow: "shadow-[0_0_50px_-10px_rgba(234,179,8,0.3)]", icon: null },
-      2: { color: "text-gray-300", border: "border-gray-400/50", bg: "bg-gray-400/10", shadow: "shadow-[0_0_30px_-10px_rgba(156,163,175,0.2)]", icon: <Medal className="w-6 h-6 text-gray-400" /> },
-      3: { color: "text-amber-600", border: "border-amber-600/50", bg: "bg-amber-600/10", shadow: "shadow-[0_0_30px_-10px_rgba(217,119,6,0.2)]", icon: <Shield className="w-6 h-6 text-amber-700" /> },
+      1: { color: "text-yellow-400", border: "border-yellow-500/50", bg: "bg-yellow-500/10", shadow: "shadow-[0_0_50px_-10px_rgba(234,179,8,0.3)]" },
+      2: { color: "text-gray-300", border: "border-gray-400/50", bg: "bg-gray-400/10", shadow: "shadow-[0_0_30px_-10px_rgba(156,163,175,0.2)]" },
+      3: { color: "text-amber-600", border: "border-amber-600/50", bg: "bg-amber-600/10", shadow: "shadow-[0_0_30px_-10px_rgba(217,119,6,0.2)]" },
    };
    
    const style = styles[rank as 1|2|3] || styles[2];
@@ -192,13 +191,6 @@ const PodiumCard = ({ player, rank }: { player: LeaderboardEntry, rank: number }
              </div>
              {/* Glow behind avatar */}
              <div className={`absolute inset-0 blur-2xl opacity-40 ${style.bg} rounded-full`}></div>
-             
-             {/* Render Icon ONLY if it exists (Crown removed for Rank 1) */}
-             {style.icon && (
-                <div className="absolute -top-6 left-1/2 -translate-x-1/2 animate-bounce">
-                    {style.icon}
-                </div>
-             )}
          </div>
 
          <h3 className="text-white font-bold font-cinzel text-lg truncate w-full mb-1">{player.username}</h3>
