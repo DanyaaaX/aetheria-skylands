@@ -13,6 +13,15 @@ export interface User {
   inviteCount: number;
   points: number;
   
+  // 🔥 НОВІ ПОЛЯ (Додані для виправлення помилок)
+  telegramHandle?: string;
+  twitterHandle?: string;
+  telegramId?: string;        // Виправляє помилку в Profile.tsx
+  
+  nftReferralsCount?: number; // Виправляє помилку в Dashboard.tsx (VIP система)
+  isVip?: boolean;            // Виправляє помилку в Dashboard.tsx (VIP статус)
+  // -----------------------
+
   hasPaidEarlyAccess: boolean;
   
   // Об'єднано: hasMintedNFT та hasNft. 

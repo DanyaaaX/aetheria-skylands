@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import { 
   CheckCircle2, Lock, Zap, LogIn, 
   RefreshCcw, Loader2, Twitter, Send, 
   Share2, Copy, Globe, 
-  ScanLine, Crown, ShieldCheck, Gem,
-  Image as ImageIcon, Sparkles
+  Crown, ShieldCheck, Gem,
+  Image as ImageIcon, Sparkles, Star
 } from 'lucide-react';
 import { User } from '../types';
 import { ADMIN_WALLET, INVITES_FOR_EA, SOCIAL_LINKS, API_BASE_URL } from '../constants';
@@ -30,9 +30,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
   const [verifyingStep, setVerifyingStep] = useState<'twitter' | 'telegram' | null>(null);
   const [scanProgress, setScanProgress] = useState(0);
 
-  // --- LOGIC: VIP STATS (Minted Referrals Only) ---
-  // ЦІЛЬ ЗМІНЕНО НА 1
-  const vipReferralsCount = (user as any).mintedInviteCount || 0; 
+  // --- LOGIC: VIP STATS ---
+  const vipReferralsCount = user?.nftReferralsCount || 0; 
   const VIP_TARGET = 1;
   const vipProgress = Math.min((vipReferralsCount / VIP_TARGET) * 100, 100);
 
@@ -49,7 +48,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
   // --- LOGIC: SOCIAL QUESTS ---
   const handleSocialVerify = async (platform: 'twitter' | 'telegram') => {
     window.open(platform === 'twitter' ? SOCIAL_LINKS.TWITTER : SOCIAL_LINKS.TELEGRAM, '_blank');
-    
     setVerifyingStep(platform);
     setScanProgress(0);
     setLocalError(null);
@@ -65,7 +63,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
       await new Promise(r => setTimeout(r, 3500));
       clearInterval(interval);
       setScanProgress(100);
-
       const res = await fetch(`${API_BASE_URL}/api/auth/update-socials`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -90,7 +87,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
       let attempts = 0;
       const maxAttempts = 20; 
       let verified = false;
-      
       while (attempts < maxAttempts && !verified) {
           try {
               const res = await fetch(`${API_BASE_URL}/api/auth/mint`, {
@@ -184,7 +180,52 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
           {/* --- LEFT COLUMN --- */}
           <div className="lg:col-span-4 space-y-6">
             
-            {/* 1. REGISTRY EXPANSION (ALL INVITES) */}
+            {/* 🔥🔥🔥 VIP / GOLD STATUS CARD (UPDATED) 🔥🔥🔥 */}
+            {user.isVip && (
+              <motion.div 
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                className="p-1 rounded-[2rem] bg-gradient-to-br from-yellow-400 via-amber-500 to-yellow-600 shadow-[0_0_50px_rgba(234,179,8,0.4)]"
+              >
+                <div className="bg-[#0E0E10] rounded-[1.8rem] p-6 relative overflow-hidden">
+                    {/* Golden Shine */}
+                    <div className="absolute inset-0 bg-gradient-to-tr from-yellow-500/10 to-transparent pointer-events-none animate-pulse"></div>
+                    
+                    <div className="flex items-center gap-4 mb-4 relative z-10">
+                        <div className="p-3 bg-yellow-500/20 rounded-xl text-yellow-400 border border-yellow-500/30">
+                            <Crown className="w-8 h-8" />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black font-cinzel text-yellow-500 uppercase tracking-widest drop-shadow-md">
+                                VIP Access
+                            </h3>
+                            <p className="text-[10px] text-yellow-200/70 font-mono uppercase tracking-widest">
+                                {user.hasMintedNFT ? "Genesis Holder" : "Elite Protocol Activated"}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between bg-black/40 border border-yellow-500/20 rounded-xl p-4 backdrop-blur-md">
+                        <div className="flex items-center gap-2">
+                           <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                           <span className="text-[10px] text-yellow-100 font-bold uppercase">Gold List</span>
+                        </div>
+                        
+                        {user.hasMintedNFT ? (
+                           <span className="px-3 py-1 bg-yellow-500 text-black text-[10px] font-black uppercase rounded-full flex items-center gap-1">
+                              <Gem className="w-3 h-3" /> Owner
+                           </span>
+                        ) : (
+                           <span className="px-3 py-1 bg-yellow-500 text-black text-[10px] font-black uppercase rounded-full">
+                              Verified
+                           </span>
+                        )}
+                    </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* 1. REGISTRY EXPANSION */}
             <motion.div 
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
@@ -226,7 +267,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                 </div>
             </motion.div>
 
-            {/* 2. VIP / GOLD AIRDROP STATUS (MINTED ONLY) */}
+            {/* 2. VIP / GOLD AIRDROP TRACKER */}
             <motion.div 
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
@@ -248,7 +289,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                         <br/><span className="text-amber-500/70 text-[9px] uppercase mt-1 block">Standard referrals do not count here.</span>
                     </p>
 
-                    {/* Progress Bar for Minted Referrals */}
+                    {/* Progress Bar */}
                     <div className="relative h-3 bg-[#151518] rounded-full overflow-hidden border border-white/5 mb-2">
                         <motion.div 
                             initial={{ width: 0 }}
@@ -346,10 +387,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                 </div>
             </motion.div>
 
-            {/* STAGE 3 WRAPPER: Contains Socials (Quest 3) and Mint (Quest 4) */}
+            {/* STAGE 3 WRAPPER */}
             <div className="relative space-y-4">
                 
-                {/* GLOBAL OVERLAY if Not Paid Early Access (Covers both) */}
                 {!user.hasPaidEarlyAccess && (
                     <div className="absolute inset-0 z-30 bg-[#030305]/80 backdrop-blur-[4px] rounded-[2.5rem] flex flex-col items-center justify-center border border-white/5">
                         <Lock className="w-8 h-8 text-gray-600 mb-4" />
@@ -357,7 +397,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                     </div>
                 )}
 
-                {/* --- QUEST 3: SOCIAL PROTOCOLS (COMBINED) --- */}
+                {/* --- QUEST 3: SOCIAL PROTOCOLS --- */}
                 <motion.div 
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
@@ -433,19 +473,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                     </div>
                 </motion.div>
 
-                {/* CONNECTOR LINE (Visual Flow) */}
+                {/* CONNECTOR LINE */}
                 <div className="flex justify-center -my-2 relative z-0">
                     <div className={`h-8 w-px border-l border-dashed ${isSocialsComplete ? 'border-green-500/50' : 'border-gray-700'}`}></div>
                 </div>
 
-                {/* --- QUEST 4: MINT (LOCKED UNTIL SOCIALS DONE) --- */}
+                {/* --- QUEST 4: MINT --- */}
                 <motion.div 
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.6 }}
                     className="relative group"
                 >
-                    {/* Access Denied Overlay (Local for Mint) */}
                     {!isSocialsComplete && user.hasPaidEarlyAccess && (
                         <div className="absolute inset-0 z-20 bg-[#030305]/60 backdrop-blur-[2px] rounded-[2.5rem] flex items-center justify-center border border-white/5">
                             <div className="px-6 py-3 rounded-full bg-black border border-white/10 flex items-center gap-3 shadow-2xl">
@@ -470,13 +509,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                             </div>
 
                             <div className="flex flex-col md:flex-row gap-8 items-center">
-                                
-                                {/* NFT PLACEHOLDER IMAGE (INSERT YOUR IMG HERE) */}
+                                {/* NFT PLACEHOLDER IMAGE */}
                                 <div className="w-full md:w-48 aspect-square rounded-2xl bg-black/50 border border-white/10 flex flex-col items-center justify-center relative overflow-hidden group/img shrink-0 shadow-2xl">
-                                    {/* Animated Scanline Effect */}
                                     {isSocialsComplete && <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-500/10 to-transparent animate-scan pointer-events-none" />}
                                     
-                                    {/* Placeholder Content - Replace with <img src="..." /> later */}
                                     <div className={`transition-all duration-500 flex flex-col items-center ${isSocialsComplete ? 'scale-100 opacity-100' : 'scale-90 opacity-30 grayscale'}`}>
                                         <div className="relative">
                                             <ImageIcon className="w-12 h-12 text-gray-600 mb-3 mx-auto" />
@@ -522,7 +558,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                                     {localError && <p className="text-center text-[10px] text-red-500 uppercase tracking-widest mt-4 animate-pulse">{localError}</p>}
                                 </div>
                             </div>
-
                         </div>
                     </div>
                 </motion.div>

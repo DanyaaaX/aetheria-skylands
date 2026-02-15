@@ -18,13 +18,12 @@ const UserSchema = new mongoose.Schema({
     type: String, 
     unique: true, 
     // 🔥 ВАЖЛИВО: ПРИБИРАЄМО required: true, бо при першому вході його ще немає!
-    // required: true, 
     trim: true,
     minlength: [3, 'Username must be at least 3 chars'],
     maxlength: [15, 'Username must be max 15 chars'],
     match: [/^[a-zA-Z0-9_]+$/, 'Only letters, numbers and underscores allowed'],
     
-    // 🔥 АВТО-ГЕНЕРАЦІЯ ТИМЧАСОВОГО НІКУ (Щоб база не сварилася)
+    // 🔥 АВТО-ГЕНЕРАЦІЯ ТИМЧАСОВОГО НІКУ
     default: function() {
        return `G-${this.walletAddress.slice(0,6).toUpperCase()}`;
     }
@@ -50,6 +49,12 @@ const UserSchema = new mongoose.Schema({
   points: { type: Number, default: 0, index: -1 },
   dailyStreak: { type: Number, default: 0 },
   lastLoginDate: { type: Date, default: null },
+
+  // ==========================================
+  // 💎 VIP SYSTEM (VIP Система - НОВЕ)
+  // ==========================================
+  nftReferralsCount: { type: Number, default: 0 }, // Скільки друзів купили NFT
+  isVip: { type: Boolean, default: false },        // Чи є юзер VIP-ом
 
   // ==========================================
   // 🌐 SOCIALS & INTEGRATIONS (Соцмережі)
