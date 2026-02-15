@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User as UserIcon, Wallet, Coins, Users, 
   CheckCircle2, Twitter, Send, Copy, ShieldCheck, 
-  Lock, Medal, Scroll, Gem, Star, Flame, Trophy, AlertTriangle 
+  Lock, Medal, Scroll, Gem, Star, Flame, Trophy, AlertTriangle, X, Save 
 } from 'lucide-react';
 import { User } from '../types';
 import { SOCIAL_LINKS } from '../constants';
 
-// --- TYPES EXTENSION (LOCAL) ---
-// Розширюємо інтерфейс, щоб TypeScript не сварився на нові фічі, 
-// поки ти не оновиш базу даних.
+// --- TYPES EXTENSION ---
 interface ExtendedUser extends User {
-  dailyStreak?: number; // Дні підряд
-  hasNft?: boolean;     // Чи є NFT
-  xpProgress?: number;  // Прогрес до 4-го бейджа
+  dailyStreak?: number;
+  hasNft?: boolean;
+  xpProgress?: number;
+  telegramHandle?: string; // Додали поле для нікнейму
+  twitterHandle?: string;  // Додали поле для нікнейму
 }
 
 interface ProfileProps {
@@ -24,13 +24,20 @@ interface ProfileProps {
 
 const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
   const [copied, setCopied] = useState(false);
-  // Приводимо юзера до розширеного типу (мокові дані для візуалізації)
-  const user = initialUser as ExtendedUser; 
   
-  // Імітація даних, яких поки немає в БД (ЗАМІНИ ПОТІМ НА РЕАЛЬНІ)
-  const userStreak = user.dailyStreak || 5; 
+  // Стан для модального вікна вводу соцмереж
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activePlatform, setActivePlatform] = useState<'twitter' | 'telegram' | null>(null);
+  const [inputHandle, setInputHandle] = useState('');
+
+  const user = initialUser as ExtendedUser;
+  
+  // Мокові дані
+  const userStreak = user.dailyStreak || 5;
   const hasNft = user.hasNft || false; 
-  const mysteryProgress = 45; // 45% розшифровки 4-го бейджа
+  const mysteryProgress = 45;
+  // Генеруємо числовий UID на основі telegramId або випадкового числа, якщо id немає
+  const uniqueUID = user.telegramId ? user.telegramId.toString() : "84920194"; 
 
   if (!user) return null;
 
@@ -42,7 +49,32 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
     }
   };
 
-  // --- BADGES LOGIC ---
+  // --- SOCIAL INPUT LOGIC ---
+  const openSocialModal = (platform: 'twitter' | 'telegram') => {
+    setActivePlatform(platform);
+    setInputHandle(''); // Скидаємо поле
+    setIsModalOpen(true);
+  };
+
+  const handleSaveSocial = () => {
+    if (!activePlatform || !inputHandle) return;
+
+    // Тут ти маєш відправити дані на БЕКЕНД
+    // Поки що оновлюємо локальний стейт
+    const updatedUser = { ...user };
+    
+    if (activePlatform === 'twitter') {
+        updatedUser.twitterHandle = inputHandle.startsWith('@') ? inputHandle : `@${inputHandle}`;
+        updatedUser.socialsFollowed = { ...user.socialsFollowed, twitter: true };
+    } else {
+        updatedUser.telegramHandle = inputHandle.startsWith('@') ? inputHandle : `@${inputHandle}`;
+        updatedUser.socialsFollowed = { ...user.socialsFollowed, telegram: true };
+    }
+
+    setUser(updatedUser);
+    setIsModalOpen(false);
+  };
+
   const badges = [
     {
       id: 1,
@@ -77,7 +109,7 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
       desc: "Decrypting...",
       icon: <Lock className="w-5 h-5" />,
       color: "red",
-      status: "progress", // Спеціальний статус для прогрес-бару
+      status: "progress",
       progress: mysteryProgress
     }
   ];
@@ -90,7 +122,6 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#1a1a2e] via-[#050505] to-[#000000]" />
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
         
-        {/* Deep Space Glows */}
         <motion.div 
           animate={{ opacity: [0.1, 0.3, 0.1], scale: [1, 1.1, 1] }}
           transition={{ duration: 10, repeat: Infinity }}
@@ -116,7 +147,6 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
             
             {/* 1. IDENTITY CARD */}
             <div className="relative p-6 sm:p-8 rounded-[2rem] bg-[#0A0A0E]/60 backdrop-blur-xl border border-white/10 overflow-hidden group hover:border-white/20 transition-all">
-              {/* Animated Top Border */}
               <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50"></div>
               
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8">
@@ -125,7 +155,6 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
                    <div className="absolute -inset-1 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-full blur opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
                    <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-[#050505] border border-white/10 flex items-center justify-center overflow-hidden z-10 shadow-2xl">
                       <UserIcon className="w-12 h-12 text-gray-500" />
-                      {/* Holographic Scanline */}
                       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/5 to-transparent animate-scan" />
                    </div>
                    <div className="absolute bottom-1 right-1 px-2.5 py-0.5 bg-[#030305] border border-green-500/30 text-green-400 text-[10px] font-bold uppercase rounded-full shadow-[0_0_10px_rgba(34,197,94,0.3)] z-20">
@@ -136,8 +165,9 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
                 {/* User Details */}
                 <div className="text-center sm:text-left flex-1 min-w-0">
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-3">
+                    {/* UID SECTION - UNIQUE NUMBERS */}
                     <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-[10px] font-mono text-cyan-200 uppercase tracking-widest">
-                      UID: {user.walletAddress ? user.walletAddress.slice(-6).toUpperCase() : "---"}
+                      UID: {uniqueUID}
                     </span>
                     {user.hasPaidEarlyAccess && (
                       <span className="px-3 py-1 bg-purple-500/10 border border-purple-500/30 rounded-md text-[10px] font-mono text-purple-300 uppercase tracking-widest flex items-center gap-1 shadow-[0_0_10px_rgba(168,85,247,0.1)]">
@@ -150,14 +180,17 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
                     {user.username}
                   </h1>
 
-                  {/* Wallet Action */}
+                  {/* Wallet Action - REAL ADDRESS */}
                   <button 
                     onClick={copyAddress}
                     className="relative overflow-hidden inline-flex items-center gap-3 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-500/50 rounded-xl transition-all w-full sm:w-auto justify-center sm:justify-start group/wallet"
+                    title="Click to copy full address"
                   >
                     <Wallet className="w-4 h-4 text-gray-400 group-hover/wallet:text-cyan-400 transition-colors" />
                     <span className="font-mono text-sm text-gray-300 group-hover/wallet:text-white">
-                      {user.walletAddress ? `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}` : "Connect Wallet"}
+                      {user.walletAddress 
+                        ? `${user.walletAddress.slice(0, 4)}...${user.walletAddress.slice(-4)}` 
+                        : "Connect Wallet"}
                     </span>
                     {copied ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 text-gray-500 group-hover/wallet:text-white" />}
                   </button>
@@ -165,7 +198,20 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
               </div>
             </div>
 
-            {/* 2. BADGES & ACHIEVEMENTS (The Requested 4 Badges) */}
+            {/* 2. SECURITY NOTICE (NEW) */}
+            <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20 flex items-start gap-3">
+                <div className="p-2 bg-red-500/10 rounded-lg text-red-400 mt-0.5">
+                    <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                    <h4 className="text-sm font-bold text-red-400 uppercase tracking-wider mb-1">Access Protocol Warning</h4>
+                    <p className="text-[11px] text-gray-400 leading-relaxed">
+                        Once you link your Telegram account and Wallet to acquire the Whitelist, your access to the Aetheria ecosystem will be permanently bound to this Telegram account. <span className="text-gray-200 font-bold">You will only be able to login via this Telegram account in the future.</span> Ensure you are using your primary secure account.
+                    </p>
+                </div>
+            </div>
+
+            {/* 3. BADGES */}
             <div>
               <div className="flex items-center justify-between mb-4 px-1">
                  <h3 className="text-lg font-cinzel font-bold text-white flex items-center gap-2">
@@ -174,7 +220,6 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
                  </h3>
                  <span className="text-xs text-gray-500 font-mono">3/4 UNLOCKED</span>
               </div>
-              
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {badges.map((badge) => (
                   <BadgeCard key={badge.id} data={badge} />
@@ -182,34 +227,35 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
               </div>
             </div>
 
-            {/* 3. COMMUNICATION MODULES (Socials) */}
+            {/* 4. COMMUNICATION MODULES (UPDATED WITH INPUT) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                <SocialModule 
                   icon={<Twitter className="w-5 h-5" />}
                   title="Neural Uplink"
                   platform="Twitter"
                   isConnected={user.socialsFollowed.twitter}
+                  handle={user.twitterHandle}
                   color="blue"
-                  link={SOCIAL_LINKS.TWITTER}
+                  onConnect={() => openSocialModal('twitter')}
                />
                <SocialModule 
                   icon={<Send className="w-5 h-5" />}
                   title="Command Channel"
                   platform="Telegram"
                   isConnected={user.socialsFollowed.telegram}
+                  handle={user.telegramHandle}
                   color="cyan"
-                  link={SOCIAL_LINKS.TELEGRAM}
+                  onConnect={() => openSocialModal('telegram')}
                />
             </div>
           </div>
 
-          {/* ================= RIGHT COLUMN (Stats & Analytics) ================= */}
+          {/* ================= RIGHT COLUMN (Stats) ================= */}
           <div className="lg:col-span-4 space-y-6">
             
-            {/* A. BALANCE CARD (Primary) */}
+            {/* A. BALANCE CARD */}
             <div className="p-6 rounded-3xl bg-gradient-to-b from-[#15151a] to-[#0A0A0E] border border-white/10 relative overflow-hidden group hover:border-yellow-500/30 transition-all shadow-xl">
                <div className="absolute top-[-20%] right-[-20%] w-40 h-40 bg-yellow-500/5 rounded-full blur-3xl group-hover:bg-yellow-500/10 transition-colors"></div>
-               
                <div className="relative z-10">
                  <div className="flex items-center justify-between mb-4">
                     <div className="p-2 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
@@ -219,7 +265,6 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
                       Pending
                     </div>
                  </div>
-                 
                  <p className="text-gray-400 font-mono text-xs uppercase tracking-widest mb-1">Total Balance</p>
                  <h2 className="text-4xl font-cinzel font-bold text-white mb-2 tracking-wide">
                     {user.points.toLocaleString()} <span className="text-sm text-yellow-500">AETH</span>
@@ -227,7 +272,7 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
                </div>
             </div>
 
-            {/* B. DAILY STREAK (New Feature) */}
+            {/* B. DAILY STREAK */}
             <div className="p-6 rounded-3xl bg-[#0A0A0E] border border-white/10 flex items-center justify-between group hover:border-orange-500/30 transition-all">
                 <div>
                    <p className="text-gray-400 font-mono text-xs uppercase tracking-widest mb-1">Login Streak</p>
@@ -239,7 +284,7 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
                 </div>
             </div>
 
-            {/* C. SQUADRON STATS */}
+            {/* C. SQUADRON */}
             <div className="p-6 rounded-3xl bg-[#0A0A0E] border border-white/10 group hover:border-cyan-500/30 transition-colors">
                <div className="flex items-center gap-4 mb-2">
                   <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
@@ -253,16 +298,13 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
                </div>
             </div>
 
-            {/* D. LEADERBOARD TEASER (New Feature) */}
-            <div className="relative p-6 rounded-3xl bg-[#08080a] border border-white/5 overflow-hidden">
-               {/* Disabled Overlay */}
+             {/* D. LEADERBOARD TEASER */}
+             <div className="relative p-6 rounded-3xl bg-[#08080a] border border-white/5 overflow-hidden">
                <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] z-20 flex flex-col items-center justify-center text-center p-4">
                   <Lock className="w-6 h-6 text-gray-500 mb-2" />
                   <p className="text-xs font-bold text-gray-300 uppercase tracking-widest">Season 1 Locked</p>
                   <p className="text-[10px] text-gray-500 mt-1">Coming Soon</p>
                </div>
-               
-               {/* Background Content (Blurred out visually) */}
                <div className="opacity-30 blur-sm">
                   <div className="flex items-center justify-between mb-4">
                      <p className="font-cinzel font-bold text-white">Global Ranking</p>
@@ -279,24 +321,74 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
           </div>
 
         </motion.div>
+
+        {/* --- MODAL FOR SOCIAL INPUT --- */}
+        <AnimatePresence>
+            {isModalOpen && (
+                <motion.div 
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }} 
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                >
+                    <motion.div 
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.9, opacity: 0 }}
+                        className="w-full max-w-md bg-[#0A0A0E] border border-white/10 rounded-3xl p-6 relative shadow-2xl"
+                    >
+                        <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
+                            <X className="w-5 h-5" />
+                        </button>
+                        
+                        <div className="flex flex-col items-center text-center mb-6">
+                            <div className={`p-4 rounded-full mb-4 ${activePlatform === 'twitter' ? 'bg-blue-500/10 text-blue-400' : 'bg-cyan-500/10 text-cyan-400'}`}>
+                                {activePlatform === 'twitter' ? <Twitter className="w-8 h-8" /> : <Send className="w-8 h-8" />}
+                            </div>
+                            <h3 className="text-xl font-cinzel font-bold text-white">Link {activePlatform === 'twitter' ? 'Twitter (X)' : 'Telegram'}</h3>
+                            <p className="text-xs text-gray-400 mt-2">
+                                Please enter your username (e.g. @username) to verify your identity.
+                            </p>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <input 
+                                    type="text" 
+                                    placeholder="@username"
+                                    value={inputHandle}
+                                    onChange={(e) => setInputHandle(e.target.value)}
+                                    className="w-full bg-[#050505] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 transition-colors font-mono text-sm"
+                                />
+                            </div>
+                            <button 
+                                onClick={handleSaveSocial}
+                                className="w-full py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 uppercase tracking-widest text-xs"
+                            >
+                                <Save className="w-4 h-4" /> Save & Verify
+                            </button>
+                        </div>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+
       </div>
     </div>
   );
 };
 
-// --- SUB-COMPONENTS FOR CLEAN CODE ---
+// --- SUB-COMPONENTS ---
 
-// 1. Badge Card Component with Progress Logic
 const BadgeCard = ({ data }: { data: any }) => {
    const isLocked = data.status === "locked";
    const isProgress = data.status === "progress";
    
-   // Dynamic Styles based on Color
    const colors: Record<string, string> = {
       yellow: "text-yellow-400 border-yellow-500/40 bg-yellow-500/5 shadow-[0_0_15px_rgba(250,204,21,0.15)]",
       cyan: "text-cyan-400 border-cyan-500/40 bg-cyan-500/5 shadow-[0_0_15px_rgba(34,211,238,0.15)]",
       purple: "text-purple-400 border-purple-500/40 bg-purple-500/5 shadow-[0_0_15px_rgba(168,85,247,0.15)]",
-      red: "text-red-400 border-red-500/20 bg-red-500/5", // For the mystery badge
+      red: "text-red-400 border-red-500/20 bg-red-500/5", 
    };
 
    return (
@@ -305,24 +397,18 @@ const BadgeCard = ({ data }: { data: any }) => {
          ${!isLocked && !isProgress ? colors[data.color] : 'border-white/5 bg-[#0e0e12]'}
          ${isLocked ? 'opacity-50 grayscale' : 'opacity-100'}
       `}>
-         
-         {/* Icon Container */}
          <div className={`
             w-10 h-10 rounded-full flex items-center justify-center mb-3 border
             ${!isLocked && !isProgress ? 'bg-[#050505] border-white/10' : 'bg-[#050505] border-white/5 text-gray-600'}
          `}>
             {data.icon}
          </div>
-
-         {/* Text Info */}
          <h4 className={`text-sm font-bold leading-tight mb-1 ${!isLocked ? 'text-white' : 'text-gray-500'}`}>
             {data.title}
          </h4>
          <p className="text-[10px] text-gray-500 font-mono uppercase tracking-wide">
             {data.desc}
          </p>
-
-         {/* 4th Badge Progress Bar Logic */}
          {isProgress && (
             <div className="w-full mt-3">
                <div className="flex justify-between text-[8px] text-red-400 font-mono mb-1">
@@ -341,8 +427,7 @@ const BadgeCard = ({ data }: { data: any }) => {
    );
 };
 
-// 2. Social Module Component
-const SocialModule = ({ icon, title, platform, isConnected, color, link }: any) => {
+const SocialModule = ({ icon, title, platform, isConnected, handle, color, onConnect }: any) => {
    return (
       <div className="flex items-center justify-between p-4 rounded-2xl bg-[#0e0e12] border border-white/5 hover:border-white/10 transition-colors group">
          <div className="flex items-center gap-3">
@@ -352,14 +437,14 @@ const SocialModule = ({ icon, title, platform, isConnected, color, link }: any) 
             <div>
                <p className="text-white font-bold text-sm leading-none mb-1">{title}</p>
                <p className={`text-[10px] uppercase font-bold tracking-wider ${isConnected ? 'text-green-500' : 'text-gray-500'}`}>
-                  {isConnected ? 'Linked' : 'Not Linked'}
+                  {isConnected ? (handle || 'Linked') : 'Not Linked'}
                </p>
             </div>
          </div>
          
          {!isConnected ? (
             <button 
-               onClick={() => window.open(link, '_blank')} 
+               onClick={onConnect} 
                className="px-4 py-1.5 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-lg text-[10px] font-bold text-white uppercase tracking-widest transition-all"
             >
                Connect
