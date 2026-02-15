@@ -1,7 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react'; // Додав useRef
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
-// Переконайся, що шляхи до types та constants правильні
-// Якщо файли в інших місцях, зміни '../types' на правильний шлях
 import { User } from '../types'; 
 import { API_BASE_URL } from '../constants';
 
@@ -14,15 +12,19 @@ export const useTonAuth = () => {
 
   const wallet = useTonWallet();
   const [tonConnectUI] = useTonConnectUI();
+  
+  // 🔥 FIX 1: Використовуємо ref, щоб знати, чи йде запит прямо зараз
+  const isFetchingRef = useRef(false);
 
   // --- 1. CHECK LOGIN STATUS (GET /login) ---
   const checkAuth = useCallback(async () => {
-    if (!wallet) {
-      setUser(null);
-      setIsAuthenticated(false);
-      return null;
-    }
+    // Якщо немає гаманця АБО запит вже йде -> виходимо
+    if (!wallet || isFetchingRef.current) return;
 
+    // Якщо ми вже авторизовані саме під цим гаманцем -> виходимо (економія запитів)
+    if (user?.walletAddress === wallet.account.address) return;
+
+    isFetchingRef.current = true; // Блокуємо повторні запити
     setIsLoading(true);
     setAuthError(null);
 
@@ -37,6 +39,11 @@ export const useTonAuth = () => {
         }),
       });
 
+      // Спеціальна обробка 429, щоб зупинити цикл, якщо він все ж станеться
+      if (response.status === 429) {
+        throw new Error("Too many requests. Please wait a moment.");
+      }
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Auth check failed: ${errorText}`);
@@ -44,16 +51,17 @@ export const useTonAuth = () => {
 
       const data = await response.json();
 
-      // Обробка відповіді
       if (data.success && data.user) {
         setUser(data.user);
         setIsAuthenticated(true);
       } else {
+        // Якщо юзера немає (потрібна реєстрація), ми НЕ ставимо помилку,
+        // просто скидаємо юзера, щоб UI показав кнопку реєстрації
         setUser(null);
         setIsAuthenticated(false);
       }
 
-      return data; // Повертаємо дані, щоб App.tsx бачив needsRegistration
+      return data;
 
     } catch (error: any) {
       console.error("❌ Auth check error:", error);
@@ -63,8 +71,9 @@ export const useTonAuth = () => {
       return null;
     } finally {
       setIsLoading(false);
+      isFetchingRef.current = false; // Розблокуємо
     }
-  }, [wallet]);
+  }, [wallet, user?.walletAddress]); // Додали user?.walletAddress для перевірки
 
   // --- 2. REGISTER USER (POST /register) ---
   const register = useCallback(async (username: string, referralCode?: string | null) => {
@@ -108,7 +117,7 @@ export const useTonAuth = () => {
     }
   }, [wallet]);
 
-  // --- HYBRID FUNCTION (Compatibility) ---
+  // --- HYBRID FUNCTION ---
   const loginOrRegister = useCallback(async (username?: string) => {
     if (username) {
       const refCode = localStorage.getItem('referralCode');
@@ -118,10 +127,19 @@ export const useTonAuth = () => {
     }
   }, [checkAuth, register]);
 
-  // --- EFFECTS ---
+  // --- 🔥 FIX 2: EFFECTS ---
+  // Слідкуємо ТІЛЬКИ за зміною адреси гаманця (рядок), а не всього об'єкта
+  const walletAddress = wallet?.account?.address;
+
   useEffect(() => {
-    checkAuth();
-  }, [wallet]);
+    if (walletAddress) {
+      checkAuth();
+    } else {
+      // Якщо гаманець відключили - очищаємо стейт
+      setUser(null);
+      setIsAuthenticated(false);
+    }
+  }, [walletAddress]); // <--- ТУТ БУЛА ГОЛОВНА ПРОБЛЕМА. Тепер ми слідкуємо за рядком.
 
   return {
     user,
@@ -131,7 +149,7 @@ export const useTonAuth = () => {
     authError,
     loginOrRegister,
     syncIdentity: checkAuth,
-    register, // ЦЕ ВИПРАВЛЯЄ ПОМИЛКУ В App.tsx
+    register,
     wallet,
     walletAddress: wallet?.account.address
   };
