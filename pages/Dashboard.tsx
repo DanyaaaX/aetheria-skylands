@@ -4,8 +4,9 @@ import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import { 
   CheckCircle2, Lock, Zap, LogIn, 
   RefreshCcw, Loader2, Twitter, Send, 
-  Box, Share2, Copy, Globe, 
-  ScanLine, Crown, ShieldCheck, Gem
+  Share2, Copy, Globe, 
+  ScanLine, Crown, ShieldCheck, Gem,
+  Image as ImageIcon, ArrowDown
 } from 'lucide-react';
 import { User } from '../types';
 import { ADMIN_WALLET, INVITES_FOR_EA, SOCIAL_LINKS, API_BASE_URL } from '../constants';
@@ -157,9 +158,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
     );
   }
 
-  // New Goal: 5 Invites for WL/Gold
+  // LOGIC HELPERS
   const WL_TARGET = 5;
   const wlProgress = Math.min((user.inviteCount / WL_TARGET) * 100, 100);
+  const isSocialsComplete = user.socialsFollowed.twitter && user.socialsFollowed.telegram;
 
   return (
     <div className="relative w-full min-h-screen bg-[#030305] text-white overflow-hidden pb-20 selection:bg-cyan-500/30">
@@ -173,8 +175,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
 
       <div className="relative z-10 max-w-[1400px] mx-auto pt-12 px-6 lg:px-12">
         
-        {/* REMOVED HEADER PER REQUEST */}
-
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
           {/* --- LEFT COLUMN --- */}
@@ -222,7 +222,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                 </div>
             </motion.div>
 
-            {/* 2. VIP / GOLD AIRDROP STATUS (NEW DESIGN) */}
+            {/* 2. VIP / GOLD AIRDROP STATUS */}
             <motion.div 
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
@@ -230,7 +230,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                 className="p-1 rounded-[2rem] bg-gradient-to-br from-amber-500/20 via-transparent to-transparent relative group"
             >
                 <div className="absolute inset-0 bg-amber-500/5 blur-xl group-hover:bg-amber-500/10 transition-colors duration-500 rounded-[2rem]" />
-                
                 <div className="bg-[#0A0A0C] p-8 rounded-[1.9rem] border border-amber-500/20 h-full relative overflow-hidden">
                     <div className="flex items-center gap-2 mb-4">
                         <Crown className="w-5 h-5 text-amber-500 fill-amber-500/20" />
@@ -268,7 +267,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
           {/* --- RIGHT COLUMN --- */}
           <div className="lg:col-span-8 space-y-4">
             
-            {/* STAGE 1 */}
+            {/* STAGE 1: REGISTRY */}
             <motion.div 
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
@@ -341,152 +340,185 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                 </div>
             </motion.div>
 
-            {/* STAGE 3: LEGENDARY MINT */}
-            <motion.div 
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="relative group"
-            >
-                <div className={`absolute -inset-1 rounded-[2.5rem] blur-xl opacity-20 transition-all duration-1000 ${user.hasPaidEarlyAccess ? 'bg-gradient-to-r from-purple-600 to-blue-600' : 'bg-transparent'}`} />
+            {/* STAGE 3 WRAPPER: Contains Socials (Quest 3) and Mint (Quest 4) */}
+            <div className="relative space-y-4">
+                
+                {/* GLOBAL OVERLAY if Not Paid Early Access (Covers both) */}
+                {!user.hasPaidEarlyAccess && (
+                    <div className="absolute inset-0 z-30 bg-[#030305]/80 backdrop-blur-[4px] rounded-[2.5rem] flex flex-col items-center justify-center border border-white/5">
+                        <Lock className="w-8 h-8 text-gray-600 mb-4" />
+                        <span className="text-xs font-mono text-gray-500 uppercase tracking-widest">Complete Previous Stages</span>
+                    </div>
+                )}
 
-                <div className={`relative p-8 rounded-[2.5rem] bg-[#08080A] border ${user.hasPaidEarlyAccess ? 'border-purple-500/30' : 'border-white/5'} overflow-hidden`}>
-                    
-                    {!user.hasPaidEarlyAccess && (
-                        <div className="absolute inset-0 z-20 bg-[#030305]/60 backdrop-blur-[2px] flex items-center justify-center">
-                            <div className="px-6 py-3 rounded-full bg-black border border-white/10 flex items-center gap-3">
-                                <Lock className="w-4 h-4 text-gray-500" />
-                                <span className="text-xs font-mono text-gray-400 uppercase tracking-widest">Access Denied</span>
+                {/* --- QUEST 3: SOCIAL PROTOCOLS --- */}
+                <motion.div 
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className={`p-8 rounded-[2.5rem] border transition-all ${isSocialsComplete ? 'bg-[#0E0E10] border-green-500/20' : 'bg-[#0A0A0C] border-white/5'}`}
+                >
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-sm font-cinzel font-bold text-white uppercase tracking-widest flex items-center gap-3">
+                            <span className="w-6 h-6 rounded bg-blue-500/10 flex items-center justify-center text-blue-400 font-mono text-xs">03</span>
+                            Protocol Verification
+                        </h3>
+                        {isSocialsComplete && <CheckCircle2 className="w-5 h-5 text-green-500" />}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* TWITTER BTN */}
+                        <button
+                            onClick={() => !user.socialsFollowed.twitter && handleSocialVerify('twitter')}
+                            disabled={user.socialsFollowed.twitter || verifyingStep !== null}
+                            className={`relative h-16 rounded-xl border flex items-center gap-4 px-4 transition-all overflow-hidden
+                                ${user.socialsFollowed.twitter 
+                                    ? 'bg-[#151518] border-green-500/30 opacity-50' 
+                                    : 'bg-[#151518] border-white/5 hover:border-white/20'
+                                }
+                            `}
+                        >
+                            <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center text-white">
+                                <Twitter className="w-4 h-4" />
+                            </div>
+                            <div className="text-left flex-grow">
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-300">Follow X</div>
+                            </div>
+                            {verifyingStep === 'twitter' ? (
+                                <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
+                            ) : user.socialsFollowed.twitter ? (
+                                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                            ) : (
+                                <div className="w-2 h-2 rounded-full bg-red-500" />
+                            )}
+                            {verifyingStep === 'twitter' && (
+                                <motion.div className="absolute inset-0 bg-cyan-500/10" initial={{ width: 0 }} animate={{ width: `${scanProgress}%` }} />
+                            )}
+                        </button>
+
+                        {/* TELEGRAM BTN */}
+                        <button
+                            onClick={() => !user.socialsFollowed.telegram && handleSocialVerify('telegram')}
+                            disabled={user.socialsFollowed.telegram || verifyingStep !== null}
+                            className={`relative h-16 rounded-xl border flex items-center gap-4 px-4 transition-all overflow-hidden
+                                ${user.socialsFollowed.telegram 
+                                    ? 'bg-[#151518] border-green-500/30 opacity-50' 
+                                    : 'bg-[#151518] border-white/5 hover:border-white/20'
+                                }
+                            `}
+                        >
+                            <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center text-white">
+                                <Send className="w-4 h-4" />
+                            </div>
+                            <div className="text-left flex-grow">
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-300">Join TG</div>
+                            </div>
+                            {verifyingStep === 'telegram' ? (
+                                <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
+                            ) : user.socialsFollowed.telegram ? (
+                                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                            ) : (
+                                <div className="w-2 h-2 rounded-full bg-red-500" />
+                            )}
+                            {verifyingStep === 'telegram' && (
+                                <motion.div className="absolute inset-0 bg-cyan-500/10" initial={{ width: 0 }} animate={{ width: `${scanProgress}%` }} />
+                            )}
+                        </button>
+                    </div>
+                </motion.div>
+
+                {/* CONNECTOR LINE */}
+                <div className="flex justify-center -my-2 relative z-0">
+                    <div className={`h-8 w-px border-l border-dashed ${isSocialsComplete ? 'border-green-500/50' : 'border-gray-700'}`}></div>
+                </div>
+
+                {/* --- QUEST 4: MINT (LOCKED UNTIL SOCIALS DONE) --- */}
+                <motion.div 
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.6 }}
+                    className="relative group"
+                >
+                    {/* Access Denied Overlay (Local for Mint) */}
+                    {!isSocialsComplete && user.hasPaidEarlyAccess && (
+                        <div className="absolute inset-0 z-20 bg-[#030305]/60 backdrop-blur-[2px] rounded-[2.5rem] flex items-center justify-center border border-white/5">
+                            <div className="px-6 py-3 rounded-full bg-black border border-white/10 flex items-center gap-3 shadow-2xl">
+                                <Lock className="w-4 h-4 text-red-500" />
+                                <span className="text-[10px] font-mono text-gray-400 uppercase tracking-widest">Locked: Verify Socials</span>
                             </div>
                         </div>
                     )}
 
-                    <div className="flex flex-col gap-8">
-                        {/* Header */}
-                        <div className="flex items-center justify-between border-b border-white/5 pb-6">
-                            <div>
-                                <h3 className="text-2xl font-cinzel font-bold text-white uppercase tracking-widest flex items-center gap-3">
-                                    <Gem className="w-6 h-6 text-purple-500" /> Genesis Artifact
+                    <div className={`relative p-1 rounded-[2.5rem] ${isSocialsComplete ? 'bg-gradient-to-b from-purple-600 to-blue-900' : 'bg-[#0E0E10]'}`}>
+                        <div className="bg-[#08080A] rounded-[2.4rem] p-8 overflow-hidden relative">
+                            
+                            {/* Header */}
+                            <div className="flex items-center justify-between mb-8">
+                                <h3 className="text-sm font-cinzel font-bold text-white uppercase tracking-widest flex items-center gap-3">
+                                    <span className={`w-6 h-6 rounded flex items-center justify-center font-mono text-xs ${isSocialsComplete ? 'bg-purple-500 text-white' : 'bg-gray-800 text-gray-500'}`}>04</span>
+                                    Genesis Artifact
                                 </h3>
-                                {/* SUPPLY UPDATED HERE */}
-                                <p className="text-[10px] text-purple-400/60 font-mono uppercase tracking-widest mt-1">
+                                <div className="text-[9px] font-mono text-purple-400 uppercase tracking-widest border border-purple-500/20 px-2 py-1 rounded bg-purple-500/5">
                                     Supply: 8888
-                                </p>
+                                </div>
                             </div>
-                            {user.hasMintedNFT && (
-                                <div className="px-3 py-1 rounded bg-green-500/10 border border-green-500/20 text-green-500 text-[10px] font-black uppercase tracking-widest">
-                                    Acquired
-                                </div>
-                            )}
-                        </div>
 
-                        {/* QUESTS GRID */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <button
-                                onClick={() => !user.socialsFollowed.twitter && handleSocialVerify('twitter')}
-                                disabled={user.socialsFollowed.twitter || verifyingStep !== null}
-                                className={`relative h-20 rounded-xl border flex items-center justify-between px-6 transition-all overflow-hidden group/quest
-                                    ${user.socialsFollowed.twitter 
-                                        ? 'bg-[#0F0F12] border-green-500/20' 
-                                        : 'bg-[#0F0F12] border-white/5 hover:border-white/10'
-                                    }
-                                `}
-                            >
-                                <div className="flex items-center gap-4 relative z-10">
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${user.socialsFollowed.twitter ? 'bg-green-500/10 text-green-500' : 'bg-[#1A1A1E] text-white'}`}>
-                                        <Twitter className="w-5 h-5" />
-                                    </div>
-                                    <div className="text-left">
-                                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-300">Protocol X</div>
-                                        <div className="text-[9px] font-mono text-gray-600">Establish Comm Link</div>
+                            <div className="flex flex-col md:flex-row gap-8 items-center">
+                                
+                                {/* NFT PLACEHOLDER IMAGE */}
+                                <div className="w-full md:w-48 aspect-square rounded-2xl bg-black/50 border border-white/10 flex flex-col items-center justify-center relative overflow-hidden group/img shrink-0 shadow-2xl">
+                                    {/* Animated Scanline */}
+                                    {isSocialsComplete && <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-500/10 to-transparent animate-scan pointer-events-none" />}
+                                    
+                                    {/* Place your IMG tag here later */}
+                                    <div className={`transition-all duration-500 ${isSocialsComplete ? 'scale-100 opacity-100' : 'scale-90 opacity-30 grayscale'}`}>
+                                        <ImageIcon className="w-12 h-12 text-gray-600 mb-3 mx-auto" />
+                                        <span className="text-[9px] uppercase tracking-widest text-gray-700 font-mono">
+                                            {isSocialsComplete ? "Decrypted" : "Encrypted"}
+                                        </span>
                                     </div>
                                 </div>
-                                <div className="relative z-10">
-                                    {verifyingStep === 'twitter' ? (
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-[9px] text-cyan-400 font-mono animate-pulse">SCANNING {scanProgress}%</span>
-                                            <Loader2 className="w-4 h-4 text-cyan-400 animate-spin mt-1" />
-                                        </div>
-                                    ) : user.socialsFollowed.twitter ? (
-                                        <CheckCircle2 className="w-5 h-5 text-green-500" />
-                                    ) : (
-                                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                                    )}
-                                </div>
-                                {verifyingStep === 'twitter' && (
-                                    <motion.div className="absolute inset-0 bg-cyan-500/10 z-0" initial={{ width: 0 }} animate={{ width: `${scanProgress}%` }} />
-                                )}
-                            </button>
 
-                            <button
-                                onClick={() => !user.socialsFollowed.telegram && handleSocialVerify('telegram')}
-                                disabled={user.socialsFollowed.telegram || verifyingStep !== null}
-                                className={`relative h-20 rounded-xl border flex items-center justify-between px-6 transition-all overflow-hidden group/quest
-                                    ${user.socialsFollowed.telegram 
-                                        ? 'bg-[#0F0F12] border-green-500/20' 
-                                        : 'bg-[#0F0F12] border-white/5 hover:border-white/10'
-                                    }
-                                `}
-                            >
-                                <div className="flex items-center gap-4 relative z-10">
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${user.socialsFollowed.telegram ? 'bg-green-500/10 text-green-500' : 'bg-[#1A1A1E] text-white'}`}>
-                                        <Send className="w-5 h-5" />
-                                    </div>
-                                    <div className="text-left">
-                                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-300">Protocol TG</div>
-                                        <div className="text-[9px] font-mono text-gray-600">Join Squadron</div>
-                                    </div>
-                                </div>
-                                <div className="relative z-10">
-                                    {verifyingStep === 'telegram' ? (
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-[9px] text-cyan-400 font-mono animate-pulse">SCANNING {scanProgress}%</span>
-                                            <Loader2 className="w-4 h-4 text-cyan-400 animate-spin mt-1" />
-                                        </div>
-                                    ) : user.socialsFollowed.telegram ? (
-                                        <CheckCircle2 className="w-5 h-5 text-green-500" />
-                                    ) : (
-                                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                                    )}
-                                </div>
-                                {verifyingStep === 'telegram' && (
-                                    <motion.div className="absolute inset-0 bg-cyan-500/10 z-0" initial={{ width: 0 }} animate={{ width: `${scanProgress}%` }} />
-                                )}
-                            </button>
-                        </div>
+                                {/* MINT ACTION AREA */}
+                                <div className="flex-grow w-full">
+                                    <p className="text-[10px] text-gray-400 font-mono uppercase tracking-widest mb-6 leading-relaxed">
+                                        Materialize your unique genesis artifact on the blockchain. Rarity is determined by block hash upon generation.
+                                    </p>
 
-                        {/* MINT BUTTON */}
-                        <div className="pt-4 border-t border-white/5">
-                            <button 
-                                disabled={!user.socialsFollowed.twitter || !user.socialsFollowed.telegram || user.hasMintedNFT}
-                                className={`w-full py-5 rounded-xl font-black uppercase tracking-[0.3em] text-xs flex items-center justify-center gap-3 transition-all relative overflow-hidden group ${
-                                    user.hasMintedNFT 
-                                    ? 'bg-[#0F0F12] text-green-500 border border-green-500/30 cursor-default'
-                                    : (user.socialsFollowed.twitter && user.socialsFollowed.telegram)
-                                        ? 'bg-white text-black hover:scale-[1.01] shadow-[0_0_30px_rgba(255,255,255,0.2)]'
-                                        : 'bg-[#15151A] text-gray-600 border border-white/5 cursor-not-allowed'
-                                }`}
-                            >
-                                {(!user.hasMintedNFT && user.socialsFollowed.twitter && user.socialsFollowed.telegram) && (
-                                    <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-40 group-hover:animate-shine" />
-                                )}
+                                    <button 
+                                        disabled={!isSocialsComplete || user.hasMintedNFT}
+                                        className={`w-full py-5 rounded-xl font-black uppercase tracking-[0.3em] text-xs flex items-center justify-center gap-3 transition-all relative overflow-hidden group ${
+                                            user.hasMintedNFT 
+                                            ? 'bg-[#0F0F12] text-green-500 border border-green-500/30 cursor-default'
+                                            : isSocialsComplete
+                                                ? 'bg-white text-black hover:scale-[1.01] shadow-[0_0_30px_rgba(255,255,255,0.2)]'
+                                                : 'bg-[#15151A] text-gray-600 border border-white/5 cursor-not-allowed'
+                                        }`}
+                                    >
+                                        {(!user.hasMintedNFT && isSocialsComplete) && (
+                                            <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-40 group-hover:animate-shine" />
+                                        )}
 
-                                {user.hasMintedNFT ? (
-                                    <>
-                                        <CheckCircle2 className="w-4 h-4" /> Artifact Secured
-                                    </>
-                                ) : (
-                                    <>
-                                        <ScanLine className={`w-4 h-4 ${(!user.socialsFollowed.twitter || !user.socialsFollowed.telegram) ? 'opacity-30' : ''}`} /> 
-                                        Initialize Materialization
-                                    </>
-                                )}
-                            </button>
-                            {localError && <p className="text-center text-[10px] text-red-500 uppercase tracking-widest mt-4 animate-pulse">{localError}</p>}
+                                        {user.hasMintedNFT ? (
+                                            <>
+                                                <CheckCircle2 className="w-4 h-4" /> Artifact Secured
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Gem className={`w-4 h-4 ${!isSocialsComplete ? 'opacity-30' : ''}`} /> 
+                                                Initialize Materialization
+                                            </>
+                                        )}
+                                    </button>
+                                    {localError && <p className="text-center text-[10px] text-red-500 uppercase tracking-widest mt-4 animate-pulse">{localError}</p>}
+                                </div>
+                            </div>
+
                         </div>
                     </div>
-                </div>
-            </motion.div>
+                </motion.div>
+
+            </div>
 
           </div>
         </div>
