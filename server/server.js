@@ -1,6 +1,5 @@
 require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -8,6 +7,9 @@ const compression = require('compression');
 const morgan = require('morgan');
 const { v4: uuidv4 } = require('uuid');
 const nacl = require('tweetnacl');
+
+// 👇 Імпортуємо нашу нову логіку БД
+const connectDB = require('../lib/db'); 
 const User = require('./models/User');
 
 const app = express();
@@ -31,7 +33,7 @@ const allowedOrigins = [
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+    if (allowedOrigins.indexOf(origin) !== -1) {
       return callback(null, true);
     } else {
       console.warn(`Blocked CORS for origin: ${origin}`);
@@ -62,6 +64,7 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
   validate: { xForwardedForHeader: false } 
 });
+
 app.use('/api/', apiLimiter);
 
 // --- APP SETTINGS ---
@@ -72,7 +75,7 @@ if (!ADMIN_WALLET) {
   console.error("🚨 CRITICAL: ADMIN_WALLET is not defined in environment variables.");
 }
 
-// --- CRYPTO & BLOCKCHAIN HELPERS (Kept from CODE 1) ---
+// --- CRYPTO & BLOCKCHAIN HELPERS ---
 
 const validateWalletAddress = (address) => {
     if (!address || typeof address !== 'string') return false;
@@ -90,24 +93,12 @@ const friendlyToHex = (friendly) => {
   }
 };
 
-const verifySignature = (publicKeyHex, signatureBase64, messageString) => {
-  try {
-    if (!publicKeyHex || !signatureBase64 || !messageString) return false;
-    const signature = Buffer.from(signatureBase64, 'base64');
-    const publicKey = Buffer.from(publicKeyHex, 'hex');
-    const message = new TextEncoder().encode(messageString);
-    return nacl.sign.detached.verify(message, signature, publicKey);
-  } catch (e) {
-    console.error("🛑 CRYPTO FAILURE:", e.message);
-    return false;
-  }
-};
-
 const verifyOnChainPayment = async (userWalletAddress) => {
   try {
-    console.log(`🔍 [CHECK] Початок перевірки для: ${userWalletAddress}`);
+    console.log(`🔍 [CHECK] Payment check for: ${userWalletAddress}`);
     const endpoint = `https://toncenter.com/api/v2/getTransactions?address=${ADMIN_WALLET}&limit=50&archival=true`;
     const headers = process.env.TON_API_KEY ? { 'X-API-Key': process.env.TON_API_KEY } : {};
+    
     const response = await fetch(endpoint, { headers });
     const data = await response.json();
     
@@ -134,13 +125,14 @@ const verifyOnChainPayment = async (userWalletAddress) => {
 
       const isMatch = (sourceHex === userHex);
       if (isMatch) {
-        console.log(`✅ ЗНАЙДЕНО! Від: ${sourceFriendly} (Hex: ${sourceHex}) | Сума: ${value}`);
+        console.log(`✅ FOUND! From: ${sourceFriendly} | Amount: ${value}`);
       }
       return isMatch && value >= BigInt(EARLY_ACCESS_COST_NANO);
     });
+
     return !!validTx;
   } catch (err) {
-    console.error("💥 Помилка:", err.message);
+    console.error("💥 Payment Error:", err.message);
     return false;
   }
 };
@@ -175,7 +167,6 @@ authRouter.get('/nonce/:walletAddress', async (req, res) => {
 
 /**
  * POST /api/auth/login
- * LOGIC FROM CODE 2: Check existence, return needsRegistration if missing.
  */
 authRouter.post('/login', async (req, res) => {
   try {
@@ -183,22 +174,12 @@ authRouter.post('/login', async (req, res) => {
     if (!walletAddress) return res.status(400).json({ error: 'Wallet required' });
 
     const lowerWallet = walletAddress.toLowerCase();
-    
-    // Check for user
     const user = await User.findOne({ walletAddress: lowerWallet });
 
     if (user) {
-      // ✅ USER EXISTS
-      return res.status(200).json({ 
-        success: true, 
-        user: user 
-      });
+      return res.status(200).json({ success: true, user: user });
     } else {
-      // ❌ USER MISSING: Signal frontend to redirect to registration
-      return res.status(200).json({ 
-        success: false, 
-        needsRegistration: true 
-      });
+      return res.status(200).json({ success: false, needsRegistration: true });
     }
 
   } catch (error) {
@@ -209,13 +190,11 @@ authRouter.post('/login', async (req, res) => {
 
 /**
  * POST /api/auth/register
- * LOGIC FROM CODE 2: Create new user with username and referral.
  */
 authRouter.post('/register', async (req, res) => {
   try {
     const { walletAddress, username, referralCode } = req.body;
 
-    // Validation
     if (!walletAddress || !username) {
       return res.status(400).json({ error: 'Wallet and Username are required' });
     }
@@ -223,8 +202,6 @@ authRouter.post('/register', async (req, res) => {
     const lowerWallet = walletAddress.toLowerCase();
     const cleanUsername = username.trim();
 
-    // 1. Check Username uniqueness
-    // Using case-insensitive regex for safer check
     const existingNick = await User.findOne({ 
       username: { $regex: new RegExp(`^${cleanUsername}$`, 'i') } 
     });
@@ -232,30 +209,29 @@ authRouter.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Username already taken' });
     }
 
-    // 2. Check Wallet uniqueness
     const existingWallet = await User.findOne({ walletAddress: lowerWallet });
     if (existingWallet) {
       return res.status(400).json({ error: 'Wallet already registered' });
     }
 
-    // 3. Create User
-    // Injecting nonce and self-referralCode generation to match CODE 1 schema requirements
+    // Creating User
     const newUser = await User.create({
       walletAddress: lowerWallet,
       username: cleanUsername,
       referralCode: cleanUsername.toLowerCase(),
       referredBy: referralCode || null,
-      nonce: uuidv4(), // Critical for future auth steps
+      nonce: uuidv4(),
       socialsFollowed: { twitter: false, telegram: false },
+      telegramId: null, // Explicitly set null, handled by sparse index now
       hasPaidEarlyAccess: false,
       hasMintedNFT: false
     });
 
-    // 4. Referral Bonus
+    // Referral Bonus Logic
     if (referralCode) {
       await User.findOneAndUpdate(
         { referralCode: referralCode.toLowerCase() },
-        { $inc: { inviteCount: 1, points: 500 } } // +500 points (from CODE 2 logic)
+        { $inc: { inviteCount: 1, points: 500 } }
       );
     }
 
@@ -263,20 +239,6 @@ authRouter.post('/register', async (req, res) => {
   } catch (error) {
     console.error('Register Error:', error);
     return res.status(500).json({ error: error.message || 'Registration failed' });
-  }
-});
-
-/**
- * POST /api/auth/check
- * Kept for backward compatibility
- */
-authRouter.post('/check', async (req, res) => {
-  try {
-      const { walletAddress } = req.body;
-      const user = await User.findOne({ walletAddress });
-      res.json({ exists: !!user, user });
-  } catch (err) {
-      res.status(500).json({ error: "Check failed" });
   }
 });
 
@@ -308,7 +270,6 @@ authRouter.post('/update-socials', async (req, res) => {
 
 /**
  * POST /api/auth/mint
- * Kept from CODE 1 (Critical Game Logic)
  */
 authRouter.post('/mint', async (req, res) => {
   const { walletAddress, updateField } = req.body;
@@ -321,7 +282,6 @@ authRouter.post('/mint', async (req, res) => {
         if (user.hasPaidEarlyAccess) return res.json({ success: true, user });
         
         const isPaid = await verifyOnChainPayment(user.walletAddress);
-        
         if (isPaid) {
             console.log(`🎉 Marking user ${user.username} as PAID!`);
             user.hasPaidEarlyAccess = true;
@@ -351,8 +311,15 @@ authRouter.post('/mint', async (req, res) => {
 
 // --- MOUNT ROUTERS ---
 app.use('/api/auth', authRouter);
-app.use('/api/leaderboard', require('./routes/leaderboard'));
-app.use('/api/payment', require('./routes/payment'));
+
+// Підключаємо інші роути, якщо вони існують у папці routes
+// Якщо їх немає - ці рядки треба закоментувати, щоб сервер не впав
+try {
+  app.use('/api/leaderboard', require('./routes/leaderboard'));
+  app.use('/api/payment', require('./routes/payment'));
+} catch (e) {
+  console.warn("⚠️ Warning: Leaderboard or Payment routes not found yet.");
+}
 
 // --- HEALTH CHECKS ---
 app.get('/health', (req, res) => res.status(200).json({ status: 'OK' }));
@@ -367,22 +334,18 @@ app.use((err, req, res, next) => {
   });
 });
 
-// --- DATABASE & SERVER START ---
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
+// =======================================================
+// 🚀 SERVER STARTUP SEQUENCE
+// =======================================================
+const startServer = async () => {
+  // 1. Спочатку підключаємось до БД і виправляємо індекси
+  await connectDB();
 
-if (!MONGODB_URI) {
-    console.error("❌ CRITICAL: MONGODB_URI is not defined in .env");
-    process.exit(1);
-}
-
-mongoose.connect(MONGODB_URI)
-  .then(() => {
-    console.log('✅ Connected to MongoDB');
-    const PORT = process.env.PORT || 5000; 
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-    });
-  })
-  .catch(err => {
-    console.error('❌ MongoDB Connection Error:', err.message);
+  // 2. Потім запускаємо сервер
+  const PORT = process.env.PORT || 5000; 
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
   });
+};
+
+startServer();

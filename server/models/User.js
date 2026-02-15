@@ -9,7 +9,7 @@ const UserSchema = new mongoose.Schema({
     type: String, 
     unique: true, 
     required: true, 
-    lowercase: true, // Завжди зберігаємо в нижньому регістрі
+    lowercase: true, 
     trim: true, 
     index: true 
   },
@@ -17,12 +17,11 @@ const UserSchema = new mongoose.Schema({
   username: { 
     type: String, 
     unique: true, 
-    required: true, // 🔥 ОБОВ'ЯЗКОВО: Юзер мусить ввести нік при реєстрації
+    required: true, 
     trim: true,
     minlength: [3, 'Username must be at least 3 chars'],
     maxlength: [15, 'Username must be max 15 chars'],
     match: [/^[a-zA-Z0-9_]+$/, 'Only letters, numbers and underscores allowed']
-    // ❌ ПРИБРАНО default: function()... (Авто-генерації більше немає)
   },
 
   publicKey: { type: String, required: false },
@@ -30,33 +29,40 @@ const UserSchema = new mongoose.Schema({
   // ==========================================
   // 🛡 SECURITY (Безпека)
   // ==========================================
+  // ✅ Зберігаємо nonce, щоб підписувати транзакції
   nonce: { type: String, required: true, default: () => uuidv4() },
 
   // ==========================================
   // 🤝 REFERRAL SYSTEM (Рефералка)
   // ==========================================
-  referralCode: { type: String, unique: true, lowercase: true, index: true },
+  // ✅ sparse: true тут теж корисний, про всяк випадок, якщо код колись буде null
+  referralCode: { type: String, unique: true, lowercase: true, sparse: true }, 
   referredBy: { type: String, default: null, index: true },
-  inviteCount: { type: Number, default: 0, index: -1 },
+  
+  // ✅ index: true (для сортування лідерборду)
+  inviteCount: { type: Number, default: 0, index: true }, 
 
   // ==========================================
   // 💰 ECONOMY & PROGRESS (Економіка)
   // ==========================================
-  points: { type: Number, default: 0, index: -1 },
+  points: { type: Number, default: 0, index: true }, // ✅ Індекс для топу гравців
   dailyStreak: { type: Number, default: 0 },
   lastLoginDate: { type: Date, default: null },
 
   // ==========================================
   // 💎 VIP SYSTEM (VIP Система)
   // ==========================================
-  nftReferralsCount: { type: Number, default: 0 }, // Скільки друзів купили NFT
-  isVip: { type: Boolean, default: false },        // Чи є юзер VIP-ом
+  nftReferralsCount: { type: Number, default: 0 },
+  isVip: { type: Boolean, default: false },
 
   // ==========================================
   // 🌐 SOCIALS & INTEGRATIONS (Соцмережі)
   // ==========================================
   telegramHandle: { type: String, default: null, trim: true },
   twitterHandle: { type: String, default: null, trim: true },
+  
+  // 🔥🔥🔥 ГОЛОВНЕ ВИПРАВЛЕННЯ 🔥🔥🔥
+  // sparse: true дозволяє мати багато користувачів з telegramId: null
   telegramId: { type: String, default: null, unique: true, sparse: true },
 
   socialsFollowed: {
@@ -68,7 +74,7 @@ const UserSchema = new mongoose.Schema({
   // 🏆 STATUSES (Статуси)
   // ==========================================
   hasPaidEarlyAccess: { type: Boolean, default: false },
-  hasMintedNFT: { type: Boolean, default: false }, // Для статусу Owner
+  hasMintedNFT: { type: Boolean, default: false },
 
 }, { timestamps: true });
 
@@ -77,7 +83,6 @@ const UserSchema = new mongoose.Schema({
  */
 UserSchema.pre('save', function(next) {
   // 1. Генерація реферального коду
-  // Оскільки username тепер обов'язковий, ми завжди беремо його
   if (this.isModified('username') || this.isNew) {
     if (this.username) {
        this.referralCode = this.username.toLowerCase();
@@ -85,11 +90,12 @@ UserSchema.pre('save', function(next) {
   }
 
   // 2. Гарантія нижнього регістру для гаманця
-  if (this.isModified('walletAddress')) {
+  if (this.isModified('walletAddress') && this.walletAddress) {
     this.walletAddress = this.walletAddress.toLowerCase();
   }
 
   next();
 });
 
-module.exports = mongoose.model('User', UserSchema);
+// Експортуємо модель
+module.exports = mongoose.models.User || mongoose.model('User', UserSchema);
