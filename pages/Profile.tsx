@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User as UserIcon, Wallet, Coins, Users, 
@@ -13,8 +13,8 @@ interface ExtendedUser extends User {
   dailyStreak?: number;
   hasNft?: boolean;
   xpProgress?: number;
-  telegramHandle?: string; // Додали поле для нікнейму
-  twitterHandle?: string;  // Додали поле для нікнейму
+  telegramHandle?: string;
+  twitterHandle?: string;
 }
 
 interface ProfileProps {
@@ -36,8 +36,26 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
   const userStreak = user.dailyStreak || 5;
   const hasNft = user.hasNft || false; 
   const mysteryProgress = 45;
-  // Генеруємо числовий UID на основі telegramId або випадкового числа, якщо id немає
-  const uniqueUID = user.telegramId ? user.telegramId.toString() : "84920194"; 
+
+  // --- ГЕНЕРАЦІЯ УНІКАЛЬНОГО UID (6 СИМВОЛІВ, ЦИФРИ + ВЕЛИКІ БУКВИ) ---
+  const uniqueUID = useMemo(() => {
+    if (!user?.walletAddress) return "849201";
+    
+    // 1. Хешуємо адресу гаманця в число
+    let hash = 0;
+    for (let i = 0; i < user.walletAddress.length; i++) {
+      hash = user.walletAddress.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    
+    // 2. Переводимо в систему числення 36 (0-9 + A-Z) і робимо UpperCase
+    const base36 = Math.abs(hash).toString(36).toUpperCase();
+    
+    // 3. Беремо останні 6 символів (вони найбільш унікальні) і гарантуємо довжину
+    // Якщо хеш короткий, додаємо 'X' в кінець
+    const finalCode = (base36 + "X9Y5Z").slice(0, 6);
+    
+    return finalCode;
+  }, [user?.walletAddress]);
 
   if (!user) return null;
 
@@ -52,15 +70,13 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
   // --- SOCIAL INPUT LOGIC ---
   const openSocialModal = (platform: 'twitter' | 'telegram') => {
     setActivePlatform(platform);
-    setInputHandle(''); // Скидаємо поле
+    setInputHandle(''); 
     setIsModalOpen(true);
   };
 
   const handleSaveSocial = () => {
     if (!activePlatform || !inputHandle) return;
 
-    // Тут ти маєш відправити дані на БЕКЕНД
-    // Поки що оновлюємо локальний стейт
     const updatedUser = { ...user };
     
     if (activePlatform === 'twitter') {
@@ -165,7 +181,7 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
                 {/* User Details */}
                 <div className="text-center sm:text-left flex-1 min-w-0">
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-3">
-                    {/* UID SECTION - UNIQUE NUMBERS */}
+                    {/* UID SECTION - UNIQUE GENERATED 6-CHAR CODE */}
                     <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-[10px] font-mono text-cyan-200 uppercase tracking-widest">
                       UID: {uniqueUID}
                     </span>
@@ -198,7 +214,7 @@ const Profile: React.FC<ProfileProps> = ({ user: initialUser, setUser }) => {
               </div>
             </div>
 
-            {/* 2. SECURITY NOTICE (NEW) */}
+            {/* 2. SECURITY NOTICE */}
             <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20 flex items-start gap-3">
                 <div className="p-2 bg-red-500/10 rounded-lg text-red-400 mt-0.5">
                     <AlertTriangle className="w-5 h-5" />
