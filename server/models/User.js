@@ -9,24 +9,20 @@ const UserSchema = new mongoose.Schema({
     type: String, 
     unique: true, 
     required: true, 
-    lowercase: true, 
-    trim: true,
+    lowercase: true, // Завжди зберігаємо в нижньому регістрі
+    trim: true, 
     index: true 
   },
   
   username: { 
     type: String, 
     unique: true, 
-    // 🔥 ВАЖЛИВО: ПРИБИРАЄМО required: true, бо при першому вході його ще немає!
+    required: true, // 🔥 ОБОВ'ЯЗКОВО: Юзер мусить ввести нік при реєстрації
     trim: true,
     minlength: [3, 'Username must be at least 3 chars'],
     maxlength: [15, 'Username must be max 15 chars'],
-    match: [/^[a-zA-Z0-9_]+$/, 'Only letters, numbers and underscores allowed'],
-    
-    // 🔥 АВТО-ГЕНЕРАЦІЯ ТИМЧАСОВОГО НІКУ
-    default: function() {
-       return `G-${this.walletAddress.slice(0,6).toUpperCase()}`;
-    }
+    match: [/^[a-zA-Z0-9_]+$/, 'Only letters, numbers and underscores allowed']
+    // ❌ ПРИБРАНО default: function()... (Авто-генерації більше немає)
   },
 
   publicKey: { type: String, required: false },
@@ -51,7 +47,7 @@ const UserSchema = new mongoose.Schema({
   lastLoginDate: { type: Date, default: null },
 
   // ==========================================
-  // 💎 VIP SYSTEM (VIP Система - НОВЕ)
+  // 💎 VIP SYSTEM (VIP Система)
   // ==========================================
   nftReferralsCount: { type: Number, default: 0 }, // Скільки друзів купили NFT
   isVip: { type: Boolean, default: false },        // Чи є юзер VIP-ом
@@ -72,7 +68,7 @@ const UserSchema = new mongoose.Schema({
   // 🏆 STATUSES (Статуси)
   // ==========================================
   hasPaidEarlyAccess: { type: Boolean, default: false },
-  hasMintedNFT: { type: Boolean, default: false },
+  hasMintedNFT: { type: Boolean, default: false }, // Для статусу Owner
 
 }, { timestamps: true });
 
@@ -80,14 +76,12 @@ const UserSchema = new mongoose.Schema({
  * 🔥 AUTOMATION HOOKS 🔥
  */
 UserSchema.pre('save', function(next) {
-  // 1. Якщо рефералки немає - створюємо її з username
-  if (!this.referralCode) {
-     if (this.username) {
-        this.referralCode = this.username.toLowerCase();
-     } else {
-        // Якщо навіть username немає (раптом), то з гаманця
-        this.referralCode = `ref-${this.walletAddress.slice(0,8)}`;
-     }
+  // 1. Генерація реферального коду
+  // Оскільки username тепер обов'язковий, ми завжди беремо його
+  if (this.isModified('username') || this.isNew) {
+    if (this.username) {
+       this.referralCode = this.username.toLowerCase();
+    }
   }
 
   // 2. Гарантія нижнього регістру для гаманця
