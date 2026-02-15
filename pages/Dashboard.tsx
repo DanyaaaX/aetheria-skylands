@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import { 
@@ -30,10 +30,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
   const [tonConnectUI] = useTonConnectUI();
   const wallet = useTonWallet();
   const [loading, setLoading] = useState(false);
-  const [verifyingTask, setVerifyingTask] = useState<string | null>(null); // New state for specific task
   const [isPolling, setIsPolling] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  
+  // Стан для анімації сканування конкретного завдання
+  const [scanningTask, setScanningTask] = useState<string | null>(null);
 
   // --- LOGIC: BADGE CALCULATION ---
   const earnedBadges = useMemo(() => {
@@ -51,47 +53,49 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
     }
   };
 
-  // --- LOGIC: QUEST VERIFICATION (NOT AUTH) ---
-  const handleTaskVerify = async (platform: 'twitter' | 'telegram') => {
-    if (verifyingTask) return; // Prevent double clicks
+  // --- LOGIC: SCAN PROTOCOL (QUESTS ONLY) ---
+  // Розділена логіка: це перевірка квесту для бейджів, а не прив'язка профілю
+  const handleScanProtocol = async (platform: 'twitter' | 'telegram') => {
+    if (scanningTask) return; // Запобігаємо подвійним клікам
 
     try {
-      setVerifyingTask(platform);
+      setScanningTask(platform); // Вмикаємо анімацію сканування
       
-      // 1. Open Link
+      // 1. Відкриваємо цільовий протокол
       window.open(platform === 'twitter' ? SOCIAL_LINKS.TWITTER : SOCIAL_LINKS.TELEGRAM, '_blank');
       
-      // 2. Visual "Scanning" delay (Quest logic only)
-      await new Promise(r => setTimeout(r, 5000)); 
+      // 2. Імітуємо роботу сканера (візуальний ефект затримки)
+      await new Promise(r => setTimeout(r, 5000));
 
-      // 3. Send Check Signal (Quest Completion, not Profile Bind)
-      const res = await fetch(`${API_BASE_URL}/api/quests/verify`, { // Changed endpoint name logically
+      // 3. Відправляємо запит на перевірку квесту
+      // Використовуємо окремий шлях або емуляцію, щоб не псувати auth
+      // Тут ми припускаємо, що бекенд має ендпоінт або ми просто оновлюємо UI
+      const res = await fetch(`${API_BASE_URL}/api/quests/verify`, { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: user?.walletAddress, platform }) 
+        body: JSON.stringify({ walletAddress: user?.walletAddress, platform })
       });
-
-      // Fallback for demo if endpoint doesn't exist yet, simply update local state via setUser
-      // Remove this fallback if your backend is ready
-      if (!res.ok) {
-         // Simulate success for UI demo
+      
+      if (res.ok) {
+         const data = await res.json();
+         if (data.success) setUser(data.user);
+      } else {
+         // Fallback: Якщо API ще немає, емулюємо успіх для UI
          setUser(prev => prev ? ({
              ...prev,
              socialsFollowed: { ...prev.socialsFollowed, [platform]: true }
          }) : null);
-      } else {
-         const data = await res.json();
-         if (data.success) setUser(data.user);
       }
 
     } catch (e) {
       setLocalError(`Signal lost for ${platform}. Retry.`);
     } finally {
-      setVerifyingTask(null);
+      setScanningTask(null);
+      setLoading(false);
     }
   };
 
-  // --- LOGIC: PAYMENT ---
+  // --- LOGIC: PAYMENT POLLING ---
   const pollPaymentStatus = async () => {
       setIsPolling(true);
       setLocalError(null);
@@ -120,6 +124,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
       if (!verified) setLocalError("Transaction processing... Check wallet.");
   };
 
+  // --- LOGIC: PAYMENT HANDLER ---
   const handlePayment = async () => {
     try {
       setLoading(true);
@@ -151,7 +156,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
             <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6 border border-white/10 relative">
                 <div className="absolute inset-0 bg-cyan-500/20 blur-xl rounded-full animate-pulse"></div>
-                <LogIn className="w-8 h-8 text-gray-400 relative z-10" />
+                <LogIn className="w-8 h-8 text-gray-400 relative z-10" /> 
             </div>
             <h2 className="text-2xl font-cinzel font-bold text-white mb-4">ACCESS RESTRICTED</h2>
             <button onClick={() => tonConnectUI.openModal()} className="px-8 py-3 bg-white text-black font-bold rounded-full uppercase tracking-widest text-xs hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)]">
@@ -187,9 +192,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
         {/* HEADER */}
         <div className="flex items-center justify-between mb-10">
             <div className="flex items-center gap-3">
-                <div className="p-2 bg-cyan-900/20 rounded-lg border border-cyan-500/30">
-                    <UserIcon className="w-4 h-4 text-cyan-400" />
-                </div>
+                <UserIcon className="w-5 h-5 text-cyan-500" />
                 <h1 className="text-lg font-cinzel font-bold tracking-widest text-white uppercase">Command Center</h1>
             </div>
             <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
@@ -203,10 +206,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
           {/* --- LEFT COLUMN (STATS & BADGES) --- */}
           <div className="lg:col-span-4 space-y-6">
             
-            {/* 1. BADGE MATRIX */}
+            {/* 1. BADGE COLLECTION */}
             <div className="p-6 rounded-[2rem] bg-[#0E0E10] border border-white/5 relative overflow-hidden backdrop-blur-sm">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-4 flex items-center gap-2">
-                    <Scan className="w-3 h-3" /> Identity Matrix
+                    <Scan className="w-3 h-3" /> Identity Matrix (Badges)
                 </h3>
                 <div className="flex flex-wrap gap-2">
                     <AnimatePresence>
@@ -232,9 +235,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
 
             {/* 2. REGISTRY EXPANSION */}
             <div className="p-8 rounded-[2rem] bg-[#0E0E10] border border-white/5 relative overflow-hidden group">
-                {/* Decoration */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full blur-[60px]"></div>
-                
                 <div className="flex justify-between items-start mb-8 relative z-10">
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2">Registry Expansion</p>
@@ -247,7 +248,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                         <Share2 className="w-4 h-4" />
                     </button>
                 </div>
-                
                 <div className="flex items-center gap-2 p-1.5 bg-[#050505] rounded-xl border border-white/5 mb-4 relative z-10">
                     <div className="flex-1 px-3 py-2 text-xs font-mono text-gray-400 truncate select-all">
                         https://t.me/AetheriaBot?start={user.referralCode}
@@ -270,7 +270,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                         animate={{ width: `${inviteProgress}%` }}
                         className="h-full bg-gradient-to-r from-cyan-600 to-blue-600 relative z-10"
                     />
-                    {/* Grid Pattern in bar */}
+                     {/* Grid Pattern in bar */}
                     <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 z-20"></div>
                 </div>
                 <div className="flex justify-between text-[9px] uppercase tracking-wider font-mono text-gray-500">
@@ -283,21 +283,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
           {/* --- RIGHT COLUMN (STAGES & TASKS) --- */}
           <div className="lg:col-span-8 space-y-4">
             
-            {/* STAGE 1: REGISTRY (Passive) */}
+            {/* STAGE 1: REGISTRY (DONE) */}
             <div className="p-6 rounded-[2rem] bg-[#0E0E10] border border-white/5 flex items-center gap-6 opacity-60 hover:opacity-100 transition-opacity cursor-default">
                 <div className="w-12 h-12 rounded-full bg-[#151518] border border-white/5 flex items-center justify-center shrink-0">
                     <Globe className="w-5 h-5 text-green-500" />
                 </div>
                 <div>
                     <h3 className="text-lg font-cinzel font-bold text-white uppercase tracking-widest mb-1">Registry Entrance</h3>
-                    <p className="text-xs text-gray-500 font-mono uppercase tracking-wider">Identity successfully bound.</p>
+                    <p className="text-xs text-gray-500 font-mono uppercase tracking-wider">Identity bound. Badges: Genesis, Early Adopter.</p>
                 </div>
                 <CheckCircle2 className="ml-auto w-5 h-5 text-green-500" />
             </div>
 
             {/* STAGE 2: EARLY ACCESS */}
             <div className={`p-6 md:p-8 rounded-[2rem] bg-[#0E0E10] border transition-all relative overflow-hidden ${user.hasPaidEarlyAccess ? 'border-green-500/20' : 'border-white/5'}`}>
-                {/* Background ambient glow */}
+                 {/* Background ambient glow */}
                 {user.hasPaidEarlyAccess && <div className="absolute right-0 top-0 w-64 h-64 bg-green-500/5 blur-[80px] -z-10" />}
 
                 <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
@@ -337,7 +337,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                 </div>
             </div>
 
-            {/* STAGE 3: LEGENDARY MINT & QUESTS */}
+            {/* STAGE 3: LEGENDARY MINT & TASKS */}
             <div className={`relative p-1 rounded-[2.5rem] ${user.hasPaidEarlyAccess ? 'bg-gradient-to-b from-purple-900/40 to-transparent' : 'bg-[#0E0E10]'}`}>
                 
                 <div className={`p-8 rounded-[2.3rem] bg-[#0A0A0C] border ${user.hasPaidEarlyAccess ? 'border-purple-500/30' : 'border-white/5'} overflow-hidden relative`}>
@@ -347,7 +347,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                         <div className="w-full md:w-32 h-32 rounded-3xl bg-[#0F0F12] border border-white/5 flex items-center justify-center shrink-0 relative shadow-2xl mx-auto md:mx-0 overflow-hidden">
                              {/* Internal Grid */}
                              <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(168,85,247,0.05)_50%,transparent_75%)] bg-[length:10px_10px]"></div>
-                             
+
                              <div className={`absolute inset-0 bg-purple-500/10 blur-xl ${user.hasPaidEarlyAccess ? 'opacity-100' : 'opacity-0'}`}></div>
                              {user.hasMintedNFT ? (
                                  <Gem className="w-12 h-12 text-purple-400 relative z-10 drop-shadow-[0_0_15px_rgba(168,85,247,0.8)] animate-pulse" />
@@ -364,13 +364,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
 
                             <div className={`space-y-4 ${!user.hasPaidEarlyAccess ? 'opacity-30 pointer-events-none filter blur-[1px]' : ''}`}>
                                 
-                                {/* QUESTS SECTION - STYLED AS DATA CARDS */}
+                                {/* QUESTS SECTION - STYLED AS HOLOGRAPHIC DATA CARDS */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     
                                     {/* QUEST: TWITTER */}
                                     <button 
-                                        onClick={() => handleTaskVerify('twitter')}
-                                        disabled={user.socialsFollowed.twitter || !!verifyingTask}
+                                        onClick={() => handleScanProtocol('twitter')}
+                                        disabled={user.socialsFollowed.twitter || !!scanningTask}
                                         className={`group relative h-14 rounded-xl border overflow-hidden transition-all flex items-center px-4 gap-3 ${
                                             user.socialsFollowed.twitter 
                                             ? 'bg-green-900/10 border-green-500/30' 
@@ -378,7 +378,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                                         }`}
                                     >
                                         {/* Scanning animation line */}
-                                        {verifyingTask === 'twitter' && (
+                                        {scanningTask === 'twitter' && (
                                             <motion.div 
                                                 initial={{ left: '-100%' }} animate={{ left: '100%' }} transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
                                                 className="absolute top-0 bottom-0 w-1/3 bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent skew-x-12 z-0"
@@ -394,7 +394,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                                             <span className={`text-[10px] font-bold uppercase tracking-wider ${user.socialsFollowed.twitter ? 'text-green-400' : 'text-white'}`}>
                                                 {user.socialsFollowed.twitter 
                                                     ? 'Uplink Established' 
-                                                    : verifyingTask === 'twitter' ? 'Scanning...' : 'Initialize'}
+                                                    : scanningTask === 'twitter' ? 'Scanning...' : 'Initialize'}
                                             </span>
                                         </div>
 
@@ -403,8 +403,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                                     
                                     {/* QUEST: TELEGRAM */}
                                     <button 
-                                        onClick={() => handleTaskVerify('telegram')}
-                                        disabled={user.socialsFollowed.telegram || !!verifyingTask}
+                                        onClick={() => handleScanProtocol('telegram')}
+                                        disabled={user.socialsFollowed.telegram || !!scanningTask}
                                         className={`group relative h-14 rounded-xl border overflow-hidden transition-all flex items-center px-4 gap-3 ${
                                             user.socialsFollowed.telegram 
                                             ? 'bg-green-900/10 border-green-500/30' 
@@ -412,7 +412,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                                         }`}
                                     >
                                         {/* Scanning animation line */}
-                                        {verifyingTask === 'telegram' && (
+                                        {scanningTask === 'telegram' && (
                                             <motion.div 
                                                 initial={{ left: '-100%' }} animate={{ left: '100%' }} transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
                                                 className="absolute top-0 bottom-0 w-1/3 bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent skew-x-12 z-0"
@@ -428,7 +428,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                                             <span className={`text-[10px] font-bold uppercase tracking-wider ${user.socialsFollowed.telegram ? 'text-green-400' : 'text-white'}`}>
                                                 {user.socialsFollowed.telegram 
                                                     ? 'Uplink Established' 
-                                                    : verifyingTask === 'telegram' ? 'Scanning...' : 'Initialize'}
+                                                    : scanningTask === 'telegram' ? 'Scanning...' : 'Initialize'}
                                             </span>
                                         </div>
 
@@ -447,7 +447,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, error, retry }) =>
                                             : 'bg-[#15151A] text-gray-600 border border-white/5 cursor-not-allowed'
                                     }`}
                                 >
-                                    {/* Shine effect on ready button */}
+                                     {/* Shine effect on ready button */}
                                     {!user.hasMintedNFT && user.socialsFollowed.twitter && user.socialsFollowed.telegram && (
                                         <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_50%,transparent_75%)] bg-[length:250%_250%] animate-shine" />
                                     )}
