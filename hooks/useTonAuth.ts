@@ -1,107 +1,137 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
-import { User } from '../types';
+// Переконайся, що шляхи до types та constants правильні
+// Якщо файли в інших місцях, зміни '../types' на правильний шлях
+import { User } from '../types'; 
 import { API_BASE_URL } from '../constants';
 
 export const useTonAuth = () => {
-  // --- STATE MANAGEMENT (Merged CODE 1 & CODE 2) ---
+  // --- STATE ---
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // From CODE 2
-  const [authError, setAuthError] = useState<string | null>(null); // From CODE 1
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const wallet = useTonWallet();
   const [tonConnectUI] = useTonConnectUI();
 
-  // --- CORE LOGIC (Injected CODE 2 Logic) ---
+  // --- 1. CHECK LOGIN STATUS (GET /login) ---
   const checkAuth = useCallback(async () => {
-    // 1. If wallet is not connected
     if (!wallet) {
       setUser(null);
       setIsAuthenticated(false);
-      setAuthError(null);
-      return;
-    }
-
-    // 2. Optimization: If user is already loaded and address matches (From CODE 2)
-    if (user && user.walletAddress === wallet.account.address) {
-      return;
+      return null;
     }
 
     setIsLoading(true);
     setAuthError(null);
 
     try {
-      // 3. Auth Request (Updated to CODE 2's simplified flow + CODE 1's referral logic)
-      const referralCode = localStorage.getItem('referralCode');
-      
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          walletAddress: wallet.account.address,
-          referredBy: referralCode || undefined // Integrated from CODE 1/CODE 2 suggestion
+          walletAddress: wallet.account.address
         }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Auth failed (${response.status}): ${errorText}`);
+        throw new Error(`Auth check failed: ${errorText}`);
       }
 
       const data = await response.json();
 
-      // Validation Logic from CODE 2
+      // Обробка відповіді
       if (data.success && data.user) {
         setUser(data.user);
         setIsAuthenticated(true);
-        console.log("✅ Authenticated as:", data.user.username);
-      } else if (data.user) {
-        // Fallback for CODE 1 backend structure compatibility
-        setUser(data.user);
-        setIsAuthenticated(true);
       } else {
-         // Handle case where response is ok but no user returned
-         setUser(null);
-         setIsAuthenticated(false);
+        setUser(null);
+        setIsAuthenticated(false);
       }
 
+      return data; // Повертаємо дані, щоб App.tsx бачив needsRegistration
+
     } catch (error: any) {
-      console.error("❌ Authentication error:", error);
+      console.error("❌ Auth check error:", error);
       setAuthError(error.message || "Authentication failed.");
       setIsAuthenticated(false);
       setUser(null);
+      return null;
     } finally {
       setIsLoading(false);
     }
-  }, [wallet, user]);
+  }, [wallet]);
+
+  // --- 2. REGISTER USER (POST /register) ---
+  const register = useCallback(async (username: string, referralCode?: string | null) => {
+    if (!wallet) return;
+
+    setIsLoading(true);
+    setAuthError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          walletAddress: wallet.account.address,
+          username: username,
+          referralCode: referralCode || undefined
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Registration failed');
+      }
+
+      if (data.success && data.user) {
+        setUser(data.user);
+        setIsAuthenticated(true);
+        console.log("✅ Registered successfully as:", data.user.username);
+        return data.user;
+      }
+      
+    } catch (error: any) {
+      console.error("❌ Registration error:", error);
+      setAuthError(error.message || "Registration failed.");
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [wallet]);
+
+  // --- HYBRID FUNCTION (Compatibility) ---
+  const loginOrRegister = useCallback(async (username?: string) => {
+    if (username) {
+      const refCode = localStorage.getItem('referralCode');
+      return register(username, refCode);
+    } else {
+      return checkAuth();
+    }
+  }, [checkAuth, register]);
 
   // --- EFFECTS ---
-  // Auto-sync effect from CODE 2
   useEffect(() => {
     checkAuth();
-  }, [wallet]); // Only re-run when wallet changes (CODE 2 Logic)
-
-  // --- COMPATIBILITY LAYER (Preserving CODE 1 API) ---
-  
-  // Adapter for manual login trigger (if needed by UI components)
-  const loginOrRegister = async (username?: string) => {
-    // Note: CODE 2 logic implies auto-creation/login via address. 
-    // Username param is kept for signature compatibility but logic relies on checkAuth.
-    await checkAuth();
-    return user;
-  };
+  }, [wallet]);
 
   return {
     user,
     setUser,
-    isAuthenticated, // Added from CODE 2
+    isAuthenticated,
     isLoading,
-    authError,       // Kept from CODE 1
-    loginOrRegister, // Kept for backward compatibility
-    syncIdentity: checkAuth, // Alias to checkAuth for backward compatibility
+    authError,
+    loginOrRegister,
+    syncIdentity: checkAuth,
+    register, // ЦЕ ВИПРАВЛЯЄ ПОМИЛКУ В App.tsx
     wallet,
     walletAddress: wallet?.account.address
   };

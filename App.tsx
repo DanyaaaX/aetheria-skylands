@@ -25,21 +25,22 @@ import { Loader2, UserCheck, AlertCircle } from 'lucide-react';
 
 const App: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams(); // Integrated from Code 2
+  const [searchParams] = useSearchParams(); 
   const wallet = useTonWallet();
-  const [tonConnectUI] = useTonConnectUI(); 
-  const { user, setUser, isLoading, authError, loginOrRegister, syncIdentity } = useTonAuth();
+  const [tonConnectUI] = useTonConnectUI();
+  
+  // Updated hook destructuring to include 'register' and ensure 'loginOrRegister' returns status
+  const { user, setUser, isLoading, authError, loginOrRegister, syncIdentity, register } = useTonAuth();
   
   const [showRegModal, setShowRegModal] = useState(false);
   const [regUsername, setRegUsername] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
   const [regError, setRegError] = useState('');
 
-  // --- REFERRAL LOGIC (Integrated from Code 2) ---
+  // --- REFERRAL LOGIC ---
   useEffect(() => {
     const refCode = searchParams.get('ref');
     if (refCode) {
-      // Save friend's code to storage for use during registration
       localStorage.setItem('referralCode', refCode);
       console.log("🔗 Referral detected:", refCode);
     }
@@ -47,30 +48,43 @@ const App: React.FC = () => {
 
   // --- TON PROOF CONFIGURATION ---
   useEffect(() => {
-      // This setting forces the wallet to generate ton_proof upon connection
-      // Critical for backend validation
       tonConnectUI.setConnectRequestParameters({
           state: 'ready',
           value: {
-              tonProof: 'AETHERIA_CONNECT_PAYLOAD' // Payload for initialization
+              tonProof: 'AETHERIA_CONNECT_PAYLOAD' 
           }
       });
   }, [tonConnectUI]);
-  // ------------------------------------------------
 
-  // Auto-trigger identity binding if wallet connected but no registry record exists
+  // --- AUTH CHECK LOGIC (ADAPTED) ---
+  // Instead of blindly opening modal, we check with backend first
   useEffect(() => {
-    if (!isLoading && wallet && !user) {
-      setShowRegModal(true);
-    } else {
-      setShowRegModal(false);
-    }
-  }, [isLoading, wallet, user]);
+    const initAuth = async () => {
+      // Only run if wallet connected, no user loaded, and not currently loading
+      if (wallet && !user && !isLoading) {
+        try {
+          // Attempt login (Check existence)
+          const response = await loginOrRegister();
+          
+          // Logic injection: Handle "needsRegistration" flag from backend
+          if (response && response.needsRegistration) {
+            console.log("📝 User not found. Registration required.");
+            setShowRegModal(true);
+          }
+        } catch (err) {
+          console.error("Auth check failed:", err);
+        }
+      }
+    };
+
+    initAuth();
+  }, [wallet, user, isLoading]); // Removed 'loginOrRegister' from dependency to prevent loops
 
   const handleRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanUsername = regUsername.trim().toUpperCase();
-    // NUCLEAR ALPHANUMERIC ENFORCEMENT: A-Z, 0-9 only, 3-15 length
+
+    // NUCLEAR ALPHANUMERIC ENFORCEMENT
     if (!/^[A-Z0-9]{3,15}$/.test(cleanUsername)) {
       setRegError("Handle must be 3-15 characters (A-Z and 0-9 only).");
       return;
@@ -80,11 +94,23 @@ const App: React.FC = () => {
     setRegError('');
 
     try {
-      await loginOrRegister(cleanUsername);
+      // Retrieve referral code if it exists
+      const referralCode = localStorage.getItem('referralCode');
+
+      // Call the SPECIFIC register function now, not loginOrRegister
+      // This assumes useTonAuth has been updated to export 'register'
+      if (register) {
+        await register(cleanUsername, referralCode);
+      } else {
+        // Fallback if hook isn't fully updated (tries to pass args to login)
+        await loginOrRegister(cleanUsername); 
+      }
+
       setShowRegModal(false);
       navigate('/dashboard');
     } catch (e: any) {
-      setRegError(e.message || "Identity synchronization failed.");
+      console.error("Registration failed:", e);
+      setRegError(e.message || "Registration failed. Please try again.");
     } finally {
       setIsRegistering(false);
     }

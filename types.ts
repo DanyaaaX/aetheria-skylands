@@ -12,6 +12,7 @@ export interface User {
   referredBy?: string | null; // Може бути undefined або null
   inviteCount: number;
   points: number;
+
   
   // 🔥 НОВІ ПОЛЯ (Додані для виправлення помилок)
   telegramHandle?: string;
