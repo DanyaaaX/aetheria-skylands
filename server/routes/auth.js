@@ -93,6 +93,7 @@ router.get('/nonce/:walletAddress', async (req, res) => {
     
     user.nonce = uuidv4();
     await user.save();
+    
     res.json({ nonce: user.nonce });
   } catch (err) {
     console.error("Nonce Error:", err);
@@ -128,6 +129,9 @@ router.post('/login', async (req, res) => {
  */
 router.post('/register', async (req, res) => {
   try {
+    // 🔥 ГАРАНТІЯ БЕЗПЕКИ: Видаляємо старий глючний індекс, якщо він є в пам'яті бази
+    await User.collection.dropIndex('telegramId_1').catch(() => console.log('✅ Old telegramId index cleared or not found.'));
+
     const { walletAddress, username, referralCode } = req.body;
 
     if (!walletAddress || !username) {
@@ -157,7 +161,7 @@ router.post('/register', async (req, res) => {
       referredBy: referralCode || null,
       nonce: uuidv4(),
       socialsFollowed: { twitter: false, telegram: false },
-      telegramId: null, // Explicitly set null, handled by sparse index now
+      // ❗️ Рядок telegramId: null ПОВНІСТЮ ВИДАЛЕНО, щоб уникнути E11000 Error
       hasPaidEarlyAccess: false,
       hasMintedNFT: false
     });
