@@ -34,9 +34,10 @@ const UserSchema = new mongoose.Schema({
   // ==========================================
   // 🤝 REFERRAL SYSTEM
   // ==========================================
-  // sparse: true тут важливий, щоб уникнути конфліктів, якщо поле раптом буде порожнім
   referralCode: { type: String, unique: true, lowercase: true, sparse: true },
-  referredBy: { type: String, default: null, index: true },
+  
+  // 🛑 ВИПРАВЛЕНО: Прибрано default: null. Для відсутності конфліктів краще залишати поле undefined
+  referredBy: { type: String, index: true },
   inviteCount: { type: Number, default: 0, index: true }, 
 
   // ==========================================
@@ -55,11 +56,11 @@ const UserSchema = new mongoose.Schema({
   // ==========================================
   // 🌐 SOCIALS
   // ==========================================
-  telegramHandle: { type: String, default: null, trim: true },
-  twitterHandle: { type: String, default: null, trim: true },
+  telegramHandle: { type: String, trim: true },
+  twitterHandle: { type: String, trim: true },
   
-  // 🔥 КРИТИЧНО ВАЖЛИВО: sparse: true дозволяє мати багато користувачів з telegramId: null
-  telegramId: { type: String, default: null, unique: true, sparse: true },
+  // 🔥 КРИТИЧНО ВИПРАВЛЕНО: default: undefined (або його відсутність) дозволяє sparse працювати ідеально
+  telegramId: { type: String, default: undefined, unique: true, sparse: true },
 
   socialsFollowed: {
     twitter: { type: Boolean, default: false },
@@ -77,7 +78,7 @@ const UserSchema = new mongoose.Schema({
 /**
  * 🔥 AUTOMATION HOOKS
  */
-UserSchema.pre('save', function(next) {
+UserSchema.pre('save', async function() {
   // 1. Авто-генерація реферального коду з юзернейму
   if (this.isModified('username') || this.isNew) {
     if (this.username) {
@@ -89,8 +90,6 @@ UserSchema.pre('save', function(next) {
   if (this.isModified('walletAddress') && this.walletAddress) {
     this.walletAddress = this.walletAddress.toLowerCase();
   }
-
-  next();
 });
 
 // ✅ Експорт для ES Modules
